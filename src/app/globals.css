@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-brand-black text-brand-white antialiased;
+  }
+
+  ::selection {
+    @apply bg-brand-orange/30 text-brand-white;
+  }
+}
+
+@layer utilities {
+  .animation-delay-100 {
+    animation-delay: 100ms;
+  }
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+  .animation-delay-500 {
+    animation-delay: 500ms;
+  }
+  .animation-delay-600 {
+    animation-delay: 600ms;
+  }
+  .animation-delay-700 {
+    animation-delay: 700ms;
+  }
+  .animation-delay-800 {
+    animation-delay: 800ms;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-brand-orange via-brand-orange-light to-brand-orange bg-clip-text text-transparent;
+  }
+
+  .grid-pattern {
+    background-image:
+      linear-gradientrgba(211, 84, 0, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(211, 84, 0, 0.03) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+}
