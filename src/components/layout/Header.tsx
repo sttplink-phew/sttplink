@@ -2,47 +2,53 @@ import Link from "next/link";
 
 export function Header() {
   return (
-    <header className="fixed top-0 z-50 w-full border-b border-white/5 bg-brand-black/80 backdrop-blur-md">
+    <header className="fixed top-0 z-50 w-full border-b border-white/10 bg-[#080808]/90 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link
-          href="/"
-          className="group flex items-center gap-2 opacity-0 animate-fade-in-down"
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-orange text-sm font-bold text-white transition-transform group-hover:scale-105">
+        <Link href="/" className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-600 text-sm font-black text-white">
             S
           </span>
-          <span className="text-lg font-semibold tracking-tight text-brand-white">
-            STTP<span className="text-brand-orange">link</span>
-          </span>
+
+          <div>
+            <p className="text-base font-black tracking-tight text-white">
+              STTPLINK
+            </p>
+
+            <p className="hidden text-[10px] text-zinc-500 sm:block">
+              Heavy Transport Platform
+            </p>
+          </div>
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className="flex items-center gap-2 sm:gap-3">
           <Link
-            href="#about"
-            className="text-sm text-brand-gray-300 transition-colors hover:text-brand-white"
+            href="/orders"
+            className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-300 transition hover:bg-white/5 hover:text-white sm:block"
           >
-            About
+            내 오더
           </Link>
+
           <Link
-            href="#services"
-            className="text-sm text-brand-gray-300 transition-colors hover:text-brand-white"
+            href="/"
+            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-orange-500"
           >
-            Services
+            오더 등록
           </Link>
+
           <Link
-            href="/driver/register"
-            className="rounded-full bg-brand-orange px-5 py-2 text-sm font-medium text-white transition-all hover:bg-brand-orange-light hover:shadow-lg hover:shadow-brand-orange/20"
+            href="/driver"
+            className="hidden rounded-lg border border-white/15 px-3 py-2 text-sm font-semibold text-zinc-400 transition hover:border-white/30 hover:text-white sm:block"
           >
-            Join as Driver
+            기사 등록
+          </Link>
+
+          <Link
+            href="/login"
+            className="rounded-lg border border-white/20 px-3 py-2 text-sm font-bold text-white transition hover:border-orange-500 hover:text-orange-400"
+          >
+            로그인
           </Link>
         </nav>
-
-        <Link
-          href="/driver/register"
-          className="rounded-full bg-brand-orange px-4 py-2 text-sm font-medium text-white transition-all hover:bg-brand-orange-light md:hidden"
-        >
-          Join
-        </Link>
       </div>
     </header>
   );
