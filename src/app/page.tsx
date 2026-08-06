@@ -69,7 +69,7 @@ function DatePickerField({
     if ("showPicker" in input) {
       input.showPicker();
     } else {
-      input.click();
+      (input as HTMLInputElement).click();
     }
   }
 
