@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export function Header() {
   return (
@@ -39,7 +40,7 @@ export function Header() {
             href="/driver"
             className="hidden rounded-lg border border-white/15 px-3 py-2 text-sm font-semibold text-zinc-400 transition hover:border-white/30 hover:text-white sm:block"
           >
-            기사 등록
+            운송차주 등록
           </Link>
 
           <Link

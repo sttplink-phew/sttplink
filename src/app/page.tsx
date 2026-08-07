@@ -5,7 +5,76 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 
 type CargoType = "container" | "equipment" | "heavy" | "";
+function ContainerIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-8 w-8 text-orange-600" fill="none">
+      <rect
+        x="6"
+        y="12"
+        width="36"
+        height="24"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+      <path
+        d="M13 14v20M20 14v20M28 14v20M35 14v20"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
 
+function EquipmentIcon() {
+  return (
+    <svg
+      viewBox="0 0 48 48"
+      className="h-8 w-8 text-orange-600"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="9" y="30" width="25" height="7" rx="2" />
+      <path d="M16 30V20H27L32 30" />
+      <path d="M27 20L34 12L41 15" />
+      <path d="M41 15L38 25" />
+      <path d="M38 25L44 28L39 32" />
+      <circle cx="15" cy="38" r="3" />
+      <circle cx="29" cy="38" r="3" />
+    </svg>
+  );
+}
+
+function HeavyIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-7 w-7" fill="none">
+      <path
+        d="M24 6v11"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <path
+        d="M24 17c0 6 8 4 8 10 0 4-3 7-8 7"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <rect
+        x="11"
+        y="34"
+        width="26"
+        height="8"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+    </svg>
+  );
+}
 const cargoItems = [
   {
     id: "container",
@@ -112,9 +181,12 @@ export default function HomePage() {
 
   const [pickupDate, setPickupDate] = useState("");
   const [pickupTime, setPickupTime] = useState("");
+  const [pickupTimeFlexible, setPickupTimeFlexible] = useState(false);
+
 
   const [deliveryDate, setDeliveryDate] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
+  const [deliveryTimeFlexible, setDeliveryTimeFlexible] = useState(false);
 
   const selectedCargo = useMemo(
     () => cargoItems.find((item) => item.id === cargoType),
@@ -126,9 +198,9 @@ export default function HomePage() {
   const canGoNext = Boolean(
     cargoType &&
       pickupDate &&
-      pickupTime &&
+      (pickupTime || pickupTimeFlexible) &&
       deliveryDate &&
-      deliveryTime
+      (deliveryTime || deliveryTimeFlexible)
   );
 
   function handlePickupDateChange(value: string) {
@@ -163,16 +235,20 @@ export default function HomePage() {
                 AI 기반 대형 화물 운송 플랫폼
               </p>
 
-              <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-                필요한 화물 운송을
-                <br />
-                쉽고 빠르게 등록하세요
-              </h1>
+              <h1 className="text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+  일회성 중량물 운송,
+  <br />
+  <span className="text-orange-500">
+    빠르고 정확하게 연결합니다
+  </span>
+</h1>
 
-              <p className="mt-6 max-w-2xl text-base leading-7 text-zinc-400 sm:text-lg">
-                화물 종류와 상·하차 일정을 선택한 뒤 출발지와 도착지,
-                상세 조건을 입력합니다.
-              </p>
+<p className="mt-6 max-w-2xl text-base leading-7 text-zinc-400 sm:text-lg">
+  필요한 일정과 운송 조건을 등록하면
+  <br />
+  조건에 맞는 운송차주와 빠르게 연결합니다.
+  
+</p>
             </div>
 
             {step === 1 && (
@@ -201,15 +277,25 @@ export default function HomePage() {
                         }`}
                       >
                         <div className="flex items-center gap-4">
-                          <span
-                            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl font-bold ${
-                              selected
-                                ? "bg-orange-600 text-white"
-                                : "bg-zinc-100 text-zinc-700"
-                            }`}
-                          >
-                            {item.icon}
-                          </span>
+                        <span
+  className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-xl ${
+    selected ? "bg-orange-100" : "bg-zinc-100"
+  }`}
+>
+  <img
+    src={
+      item.title === "컨테이너"
+        ? "/container.png"
+        : item.title === "건설장비"
+        ? "/construction.png"
+        : "/heavy-cargo.png"
+    }
+    alt={item.title}
+    className={`h-14 w-14 object-contain transition ${
+      selected ? "scale-110" : "scale-100"
+    }`}
+  />
+</span>
 
                           <div>
                             <h3 className="text-lg font-bold">
@@ -242,21 +328,38 @@ export default function HomePage() {
                     </div>
 
                     {pickupDate && (
-                      <label className="mt-4 block">
-                        <span className="mb-2 block text-xs font-bold text-zinc-500">
-                          상차 시간
-                        </span>
+  <div className="mt-4">
+    <span className="mb-2 block text-xs font-bold text-zinc-500">
+      상차 시간
+    </span>
 
-                        <input
-                          type="time"
-                          value={pickupTime}
-                          onChange={(event) =>
-                            setPickupTime(event.target.value)
-                          }
-                          className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 font-semibold outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                        />
-                      </label>
-                    )}
+    <input
+      type="time"
+      value={pickupTime}
+      disabled={pickupTimeFlexible}
+      onChange={(event) => setPickupTime(event.target.value)}
+      className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 disabled:bg-zinc-100 disabled:text-zinc-400"
+    />
+
+    <label className="mt-3 flex items-center gap-2 text-sm text-zinc-700">
+      <input
+        type="checkbox"
+        checked={pickupTimeFlexible}
+        onChange={(event) => {
+          setPickupTimeFlexible(event.target.checked);
+          if (event.target.checked) setPickupTime("");
+        }}
+      />
+      시간 상관없음
+    </label>
+
+    {pickupTimeFlexible && (
+      <p className="mt-2 text-xs text-zinc-500">
+        배차 후 운송차주가 가능한 시간을 알려드립니다.
+      </p>
+    )}
+  </div>
+)}
                   </div>
 
                   <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
@@ -274,21 +377,38 @@ export default function HomePage() {
                     </div>
 
                     {deliveryDate && (
-                      <label className="mt-4 block">
-                        <span className="mb-2 block text-xs font-bold text-zinc-500">
-                          원하는 하차 시간
-                        </span>
+  <div className="mt-4">
+    <span className="mb-2 block text-xs font-bold text-zinc-500">
+      원하는 하차 시간
+    </span>
 
-                        <input
-                          type="time"
-                          value={deliveryTime}
-                          onChange={(event) =>
-                            setDeliveryTime(event.target.value)
-                          }
-                          className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 font-semibold outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                        />
-                      </label>
-                    )}
+    <input
+      type="time"
+      value={deliveryTime}
+      disabled={deliveryTimeFlexible}
+      onChange={(event) => setDeliveryTime(event.target.value)}
+      className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 font-semibold outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100 disabled:bg-zinc-100 disabled:text-zinc-400"
+    />
+
+    <label className="mt-3 flex items-center gap-2 text-sm text-zinc-700">
+      <input
+        type="checkbox"
+        checked={deliveryTimeFlexible}
+        onChange={(event) => {
+          setDeliveryTimeFlexible(event.target.checked);
+          if (event.target.checked) setDeliveryTime("");
+        }}
+      />
+      시간 상관없음
+    </label>
+
+    {deliveryTimeFlexible && (
+      <p className="mt-2 text-xs text-zinc-500">
+        배차 후 운송차주가 예상 시간을 알려드립니다.
+      </p>
+    )}
+  </div>
+)}
                   </div>
                 </div>
 
