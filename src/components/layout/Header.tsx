@@ -1,7 +1,26 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { useEffect, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
 
 export function Header() {
+  const [user, setUser] = useState<any>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+    });
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    window.location.href = "/";
+  };
+
   return (
     <header className="fixed top-0 z-50 w-full border-b border-white/10 bg-[#080808]/90 backdrop-blur-md">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -38,12 +57,30 @@ export function Header() {
             운송차주 등록
           </Link>
 
-          <Link
-            href="/login"
-            className="rounded-lg border border-white/20 px-3 py-2 text-sm font-bold text-white transition hover:border-orange-500 hover:text-orange-400"
-          >
-            로그인
-          </Link>
+          {user ? (
+            <>
+  <Link
+    href="/driver/my"
+    className="rounded-lg border border-white/20 px-3 py-2 text-sm font-bold text-white transition hover:border-orange-500 hover:text-orange-400"
+  >
+    내 정보
+  </Link>
+
+  <button
+    onClick={handleLogout}
+    className="rounded-lg border border-white/20 px-3 py-2 text-sm font-bold text-white transition hover:border-orange-500 hover:text-orange-400"
+  >
+    로그아웃
+  </button>
+</>
+) : (
+  <Link
+    href="/login"
+    className="rounded-lg border border-white/20 px-3 py-2 text-sm font-bold text-white transition hover:border-orange-500 hover:text-orange-400"
+  >
+    로그인
+  </Link>
+)}
         </nav>
       </div>
     </header>

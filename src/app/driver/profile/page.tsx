@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -78,6 +78,8 @@ export default function DriverProfilePage() {
   const [selectedRegion, setSelectedRegion] = useState<string[]>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<string[]>([]);
   const router = useRouter();
+  const searchParams = useSearchParams();
+const next = searchParams.get("next");
   const supabase = createClient();
   const [vehicleNumber, setVehicleNumber] = useState("");
 const [businessNumber, setBusinessNumber] = useState("");
@@ -149,7 +151,7 @@ function toggleLoad(load: string) {
     }
   
     alert("운송차주 정보가 저장되었습니다.");
-    router.push("/");
+    router.push(next || "/");
   }
 
   return (

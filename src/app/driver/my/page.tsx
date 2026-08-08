@@ -126,7 +126,7 @@ export default function DriverMyPage() {
 
             <button
               type="button"
-              onClick={() => router.push("/driver/profile")}
+              onClick={() => router.push("/driver/profile?mode=edit")}
               className="mt-7 h-14 w-full rounded-xl bg-orange-600 text-sm font-bold text-white transition hover:bg-orange-500"
             >
               운송차주 정보 수정
