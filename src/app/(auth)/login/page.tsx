@@ -39,13 +39,22 @@ if (role === "driver") {
     alert(`운송차주 정보 확인 오류: ${driverError.message}`);
     return;
   }
+  
+  const next = new URLSearchParams(window.location.search).get("next");
+
+if (next) {
+  router.push(next);
+  return;
+}
+
+const role = data.user?.user_metadata?.role;
 
   if (driverProfiles && driverProfiles.length > 0) {
     router.push("/driver/my");
   } else {
     router.push("/driver/profile");
   }
-  
+
 } else {
   router.push("/");
 }

@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { createClient } from "@/utils/supabase/client";
 
 type CargoType = "container" | "equipment" | "heavy" | "";
 function ContainerIcon() {
@@ -176,6 +177,8 @@ function DatePickerField({
 }
 
 export default function HomePage() {
+  const supabase = createClient();
+
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [cargoType, setCargoType] = useState<CargoType>("");
 
@@ -220,6 +223,26 @@ export default function HomePage() {
     setDeliveryTime("");
     setStep(1);
   }
+async function submitOrder() {
+  const { error } = await supabase.from("orders").insert({
+    cargo_type: cargoType,
+    pickup_date: pickupDate,
+    pickup_time: pickupTime || null,
+    pickup_time_flexible: pickupTimeFlexible,
+    delivery_date: deliveryDate,
+    delivery_time: deliveryTime || null,
+    delivery_time_flexible: deliveryTimeFlexible,
+    status: "open",
+    driver_id: null,
+  });
+
+  if (error) {
+    alert("오더 등록 중 오류가 발생했습니다.\n" + error.message);
+    return;
+  }
+
+  setStep(3);
+}
 
   return (
     <>
@@ -506,7 +529,7 @@ export default function HomePage() {
 
                   <button
                     type="button"
-                    onClick={() => setStep(3)}
+                    onClick={submitOrder}
                     className="rounded-xl bg-orange-600 px-8 py-3 text-sm font-bold text-white transition hover:bg-orange-500"
                   >
                     오더 등록
