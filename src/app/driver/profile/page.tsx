@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { createClient } from "@/utils/supabase/client";
@@ -78,8 +78,12 @@ export default function DriverProfilePage() {
   const [selectedRegion, setSelectedRegion] = useState<string[]>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<string[]>([]);
   const router = useRouter();
-  const searchParams = useSearchParams();
-const next = searchParams.get("next");
+  const [next, setNext] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setNext(params.get("next"));
+  }, []);
   const supabase = createClient();
   const [vehicleNumber, setVehicleNumber] = useState("");
 const [businessNumber, setBusinessNumber] = useState("");
