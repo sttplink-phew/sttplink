@@ -148,15 +148,19 @@ function DatePickerField({
       <span className="mb-2 block text-xs font-bold text-zinc-500">
         {label}
       </span>
-
+      <div className="relative">
       <input
         ref={inputRef}
         type="date"
         min={min}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 font-bold text-zinc-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+        className="h-14 w-full min-w-0 max-w-full box-border rounded-xl border border-zinc-200 bg-white px-4 font-bold text-zinc-900 ..."
       />
+      <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xl">
+  📅
+</span>
+</div>
     </div>
   );
 }
