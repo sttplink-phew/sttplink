@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
 import { Header } from "@/components/layout/Header";
@@ -14,6 +15,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
+  const router = useRouter();
 
   function handleSignup(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -23,11 +25,13 @@ export default function SignupPage() {
       return;
     }
 
-    alert(
-      "회원가입 화면은 정상 작동합니다. 실제 계정 저장 기능은 다음 단계에서 연결합니다."
-    );
+    if (role === "driver") {
+      router.push("/driver/profile");
+    } else {
+      router.push("/");
+    }
   }
-
+  
   return (
     <>
       <Header />
@@ -84,7 +88,7 @@ export default function SignupPage() {
                     }`}
                   >
                     <span className="text-lg font-bold">
-                      운송 기사
+                      운송 차주
                     </span>
 
                     <p className="mt-2 text-sm leading-6 text-zinc-500">

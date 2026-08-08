@@ -34,7 +34,7 @@ export default function LoginPage() {
               </h1>
 
               <p className="mt-3 text-sm leading-6 text-zinc-500">
-                화주와 운송 기사는 하나의 계정으로 로그인합니다.
+                화주와 운송 차주는 하나의 계정으로 로그인합니다.
               </p>
             </div>
 

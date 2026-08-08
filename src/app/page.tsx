@@ -225,7 +225,10 @@ export default function HomePage() {
     <>
       <Header />
 
-      <main className="min-h-screen bg-[#080808] text-white">
+      <main
+  className="min-h-screen bg-cover bg-center bg-no-repeat text-white"
+  style={{ backgroundImage: "url('/hero-truck.png')" }}
+>
         <section className="relative overflow-hidden px-4 pb-24 pt-28 sm:px-6 lg:px-8">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(234,88,12,0.20),transparent_38%)]" />
 
@@ -252,7 +255,7 @@ export default function HomePage() {
             </div>
 
             {step === 1 && (
-              <section className="mt-10 rounded-3xl border border-white/10 bg-white p-5 text-zinc-900 shadow-2xl sm:p-7">
+              <section className="mt-10 rounded-3xl border border-white/20 bg-black/55 p-5 text-white shadow-2xl backdrop-blur-md sm:p-7">
                 <p className="text-xs font-bold text-orange-600">
                   STEP 1
                 </p>
@@ -313,7 +316,7 @@ export default function HomePage() {
                 </div>
 
                 <div className="mt-8 grid gap-5 lg:grid-cols-2">
-                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
+                <div className="rounded-2xl border border-white/20 bg-white/95 p-5 text-zinc-900 shadow-xl">
                     <h3 className="text-lg font-bold text-zinc-900">
                       상차 일정
                     </h3>
