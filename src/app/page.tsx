@@ -176,6 +176,9 @@ export default function HomePage() {
   const [deliveryTime, setDeliveryTime] = useState("");
   const [deliveryTimeFlexible, setDeliveryTimeFlexible] = useState(false);
   const [freightPrice, setFreightPrice] = useState("");
+  const [customerName, setCustomerName] = useState("");
+const [customerPhone, setCustomerPhone] = useState("");
+const [customerEmail, setCustomerEmail] = useState("");
   const selectedCargo = useMemo(
     () => cargoItems.find((item) => item.id === cargoType),
     [cargoType]
@@ -209,6 +212,10 @@ export default function HomePage() {
     setStep(1);
   }
 async function submitOrder() {
+  if (!customerName || !customerPhone) {
+    alert("이름/업체명과 연락처를 입력해주세요.");
+    return;
+  }
   const { error } = await supabase.from("orders").insert({
     cargo_type: cargoType,
     pickup_date: pickupDate,
@@ -218,7 +225,11 @@ async function submitOrder() {
     delivery_time: deliveryTime || null,
     delivery_time_flexible: deliveryTimeFlexible,
     freight_price: freightPrice,
-    status: "open",
+    customer_name: customerName,
+customer_phone: customerPhone,
+customer_email: customerEmail || null,
+edit_code: crypto.randomUUID().slice(0, 8).toUpperCase(),
+status: "open",
     driver_id: null,
   });
 
@@ -499,6 +510,46 @@ async function submitOrder() {
                   />
                 </label>
 
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+  <div>
+    <label className="mb-2 block text-sm font-bold text-zinc-700">
+      이름 / 업체명
+    </label>
+    <input
+      type="text"
+      value={customerName}
+      onChange={(e) => setCustomerName(e.target.value)}
+      placeholder="예: 홍길동 / STTP물류"
+      className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+    />
+  </div>
+
+  <div>
+    <label className="mb-2 block text-sm font-bold text-zinc-700">
+      연락처
+    </label>
+    <input
+      type="tel"
+      value={customerPhone}
+      onChange={(e) => setCustomerPhone(e.target.value)}
+      placeholder="예: 010-1234-5678"
+      className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+    />
+  </div>
+</div>
+
+<div className="mt-4">
+  <label className="mb-2 block text-sm font-bold text-zinc-700">
+    이메일 <span className="font-normal text-zinc-400">(선택)</span>
+  </label>
+  <input
+    type="email"
+    value={customerEmail}
+    onChange={(e) => setCustomerEmail(e.target.value)}
+    placeholder="예: example@gmail.com"
+    className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+  />
+</div>
                 <div className="mt-5">
   <label className="mb-2 block text-sm font-bold text-zinc-700">
     제시 운임
