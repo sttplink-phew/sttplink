@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { createClient } from "@/utils/supabase/client";
 
 type AccountRole = "customer" | "driver";
 
@@ -16,15 +17,57 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const router = useRouter();
+  const supabase = createClient();
 
-  function handleSignup(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSignup(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
+  
     if (password !== passwordConfirm) {
       alert("비밀번호가 일치하지 않습니다.");
       return;
     }
+  
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          phone,
+          role,
+        },
+      },
+    });
+    
+    if (error) {
+      if (
+        error.message.includes("already registered") ||
+        error.message.includes("already been registered") ||
+        error.message.includes("already exists")
+      ) {
+        alert("이미 가입된 이메일입니다. 로그인해주세요.");
+        return;
+      }
+    
+      alert(`회원가입 오류: ${error.message}`);
+      return;
+    }
+    
+    if (data.user?.identities?.length === 0) {
+      alert("이미 가입된 이메일입니다. 로그인해주세요.");
+      return;
+    }
+    
+    alert("회원가입이 완료되었습니다.");
 
+if (role === "driver") {
+  router.push("/driver/profile");
+} else {
+  router.push("/");
+}
+
+return;
+  
     if (role === "driver") {
       router.push("/driver/profile");
     } else {

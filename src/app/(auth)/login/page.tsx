@@ -4,17 +4,51 @@ import Link from "next/link";
 import { useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const router = useRouter();
+const supabase = createClient();
 
-  function handleLogin(event: React.FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+  
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+  
+    if (error) {
+      alert(`로그인 오류: ${error.message}`);
+      return;
+    }
+  
+    const role = data.user?.user_metadata?.role;
 
-    alert(
-      "아직 실제 로그인 기능은 연결되지 않았습니다. 다음 단계에서 계정 시스템을 연결합니다."
-    );
+if (role === "driver") {
+  const { data: driverProfiles, error: driverError } = await supabase
+  .from("drivers")
+  .select("id")
+  .eq("user_id", data.user.id)
+  .limit(1);
+
+  if (driverError) {
+    alert(`운송차주 정보 확인 오류: ${driverError.message}`);
+    return;
+  }
+
+  if (driverProfiles && driverProfiles.length > 0) {
+    router.push("/driver/my");
+  } else {
+    router.push("/driver/profile");
+  }
+  
+} else {
+  router.push("/");
+}
   }
 
   return (

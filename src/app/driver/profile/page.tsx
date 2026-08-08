@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { createClient } from "@/utils/supabase/client";
 
 const vehicleOptions = [
   "트랙터",
@@ -77,6 +78,10 @@ export default function DriverProfilePage() {
   const [selectedRegion, setSelectedRegion] = useState<string[]>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<string[]>([]);
   const router = useRouter();
+  const supabase = createClient();
+  const [vehicleNumber, setVehicleNumber] = useState("");
+const [businessNumber, setBusinessNumber] = useState("");
+const [memo, setMemo] = useState("");
 
   function toggleVehicle(vehicle: string) {
     setSelectedVehicles((current) =>
@@ -113,6 +118,40 @@ function toggleLoad(load: string) {
         : [...current, item]
     );
   }
+
+  async function handleSaveDriver() {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+  
+    if (userError || !user) {
+      alert("로그인이 필요합니다.");
+      router.push("/login");
+      return;
+    }
+  
+    const { error } = await supabase.from("drivers").insert({
+      user_id: user.id,
+      vehicle_types: selectedVehicles,
+      cargo_types: selectedCargo,
+      load_conditions: selectedLoad,
+      regions: selectedRegion,
+      business_info: selectedBusiness,
+      vehicle_number: vehicleNumber,
+      business_number: businessNumber,
+      memo,
+    });
+  
+    if (error) {
+      alert(`저장 오류: ${error.message}`);
+      return;
+    }
+  
+    alert("운송차주 정보가 저장되었습니다.");
+    router.push("/");
+  }
+
   return (
     <>
       <Header />
@@ -414,6 +453,8 @@ function toggleLoad(load: string) {
       </span>
       <input
         type="text"
+        value={vehicleNumber}
+onChange={(event) => setVehicleNumber(event.target.value)}
         placeholder="예: 서울12아3456"
         className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
       />
@@ -425,6 +466,8 @@ function toggleLoad(load: string) {
       </span>
       <input
         type="text"
+        value={businessNumber}
+onChange={(event) => setBusinessNumber(event.target.value)}
         placeholder="예: 123-45-67890"
         className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
       />
@@ -436,6 +479,8 @@ function toggleLoad(load: string) {
       </span>
       <textarea
         rows={4}
+        value={memo}
+onChange={(event) => setMemo(event.target.value)}
         placeholder="차량 특성, 운송 가능 조건 등 추가 정보를 입력하세요."
         className="w-full rounded-xl border border-zinc-200 bg-white p-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
       />
@@ -496,7 +541,7 @@ function toggleLoad(load: string) {
 </div>
 <button
   type="button"
-  onClick={() => router.push("/")}
+  onClick={handleSaveDriver}
   className="mt-7 h-14 w-full rounded-xl bg-orange-600 text-sm font-bold text-white transition hover:bg-orange-500"
 >
               운송차주 등록 완료
