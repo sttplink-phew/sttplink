@@ -559,16 +559,23 @@ status: "open",
     제시 운임
   </label>
 
+  <div className="flex h-14 w-full items-center rounded-xl border border-zinc-200 bg-white px-4 focus-within:border-orange-500 focus-within:ring-2">
+  <span className="mr-3 font-bold text-zinc-700">금</span>
+
   <input
     type="text"
     value={freightPrice}
     onChange={(e) => {
       const numbers = e.target.value.replace(/[^0-9]/g, "");
-      setFreightPrice(numbers ? Number(numbers).toLocaleString("ko-KR") : "");
+      setFreightPrice(
+        numbers ? Number(numbers).toLocaleString("ko-KR") : ""
+      );
     }}
-    placeholder="예: 450,000원"
-    className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+    placeholder="예: 450,000"
+    className="min-w-0 flex-1 bg-transparent text-zinc-900 outline-none"
   />
+
+  <span className="ml-3 font-bold text-zinc-700">원</span>
 </div>
                 <div className="mt-4 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm leading-6 text-orange-800">
   제시 운임은 추가 장비, 대기시간, 작업 조건 및 현장 상황에 따라
