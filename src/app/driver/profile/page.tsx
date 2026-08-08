@@ -88,7 +88,41 @@ export default function DriverProfilePage() {
   const [vehicleNumber, setVehicleNumber] = useState("");
 const [businessNumber, setBusinessNumber] = useState("");
 const [memo, setMemo] = useState("");
+const [isExisting, setIsExisting] = useState(false);
+useEffect(() => {
+  async function loadDriverProfile() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("drivers")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error("운송차주 정보 조회 오류:", error);
+      return;
+    }
+
+    if (!data) return;
+
+    setIsExisting(true);
+    setSelectedVehicles(data.vehicle_types ?? []);
+    setSelectedCargo(data.cargo_types ?? []);
+    setSelectedLoad(data.load_conditions ?? []);
+    setSelectedRegion(data.regions ?? []);
+    setSelectedBusiness(data.business_info ?? []);
+    setVehicleNumber(data.vehicle_number ?? "");
+    setBusinessNumber(data.business_number ?? "");
+    setMemo(data.memo ?? "");
+  }
+
+  loadDriverProfile();
+}, []);
   function toggleVehicle(vehicle: string) {
     setSelectedVehicles((current) =>
       current.includes(vehicle)
@@ -137,7 +171,7 @@ function toggleLoad(load: string) {
       return;
     }
   
-    const { error } = await supabase.from("drivers").insert({
+    const { error } = await supabase.from("drivers").upsert({
       user_id: user.id,
       vehicle_types: selectedVehicles,
       cargo_types: selectedCargo,
@@ -147,7 +181,7 @@ function toggleLoad(load: string) {
       vehicle_number: vehicleNumber,
       business_number: businessNumber,
       memo,
-    });
+    }, { onConflict: "user_id" });
   
     if (error) {
       alert(`저장 오류: ${error.message}`);
@@ -550,7 +584,7 @@ onChange={(event) => setMemo(event.target.value)}
   onClick={handleSaveDriver}
   className="mt-7 h-14 w-full rounded-xl bg-orange-600 text-sm font-bold text-white transition hover:bg-orange-500"
 >
-              운송차주 등록 완료
+{isExisting ? "정보 수정" : "운송차주 등록"}
             </button>
           </section>
         </div>

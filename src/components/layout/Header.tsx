@@ -14,6 +14,16 @@ export function Header() {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
     });
+  
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+  
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -32,7 +42,7 @@ export function Header() {
     width={750}
     height={250}
     priority
-    className="h-40 w-auto -ml-14 scale-[2] origin-left object-contain"
+    className="h-16 w-auto -ml-4 sm:h-20 sm:-ml-6 object-contain"
   />
 </Link>
 
@@ -51,12 +61,14 @@ export function Header() {
             오더 등록
           </Link>
 
-          <Link
-            href="/driver/register"
-            className="hidden rounded-lg border border-white/15 px-3 py-2 text-sm font-semibold text-zinc-400 transition hover:border-white/30 hover:text-white sm:block"
-          >
-            운송차주 등록
-          </Link>
+          {!user && (
+  <Link
+    href="/driver/register"
+    className="hidden rounded-lg border border-white/15 px-3 py-2 text-sm font-semibold text-zinc-400 transition hover:border-white/30 hover:text-white sm:block"
+  >
+    운송차주 등록
+  </Link>
+)}
 
           {user ? (
             <>

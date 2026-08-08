@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { createClient } from "@/utils/supabase/client";
@@ -19,6 +19,14 @@ export default function SignupPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        router.replace("/driver/my");
+      }
+    });
+  }, []);
+  
   async function handleSignup(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
   

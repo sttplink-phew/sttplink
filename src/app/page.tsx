@@ -190,7 +190,7 @@ export default function HomePage() {
   const [deliveryDate, setDeliveryDate] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
   const [deliveryTimeFlexible, setDeliveryTimeFlexible] = useState(false);
-
+  const [freightPrice, setFreightPrice] = useState("");
   const selectedCargo = useMemo(
     () => cargoItems.find((item) => item.id === cargoType),
     [cargoType]
@@ -232,6 +232,7 @@ async function submitOrder() {
     delivery_date: deliveryDate,
     delivery_time: deliveryTime || null,
     delivery_time_flexible: deliveryTimeFlexible,
+    freight_price: freightPrice,
     status: "open",
     driver_id: null,
   });
@@ -513,9 +514,25 @@ async function submitOrder() {
                   />
                 </label>
 
+                <div className="mt-5">
+  <label className="mb-2 block text-sm font-bold text-zinc-700">
+    제시 운임
+  </label>
+
+  <input
+    type="text"
+    value={freightPrice}
+    onChange={(e) => {
+      const numbers = e.target.value.replace(/[^0-9]/g, "");
+      setFreightPrice(numbers ? Number(numbers).toLocaleString("ko-KR") : "");
+    }}
+    placeholder="예: 450,000원"
+    className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+  />
+</div>
                 <div className="mt-4 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm leading-6 text-orange-800">
-                  추가 장비, 대기시간, 작업 조건 및 현장 상황에 따라
-                  실제 운임이 달라질 수 있습니다.
+  제시 운임은 추가 장비, 대기시간, 작업 조건 및 현장 상황에 따라
+  실제 운임과 달라질 수 있습니다.
                 </div>
 
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">

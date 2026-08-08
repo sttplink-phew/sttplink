@@ -12,6 +12,7 @@ type Order = {
   delivery_date: string;
   delivery_time: string | null;
   delivery_time_flexible: boolean;
+  freight_price: string | null;
   status: string;
   driver_id: string | null;
 };
@@ -95,7 +96,9 @@ export default function OrdersPage() {
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <p>화물 종류: {order.cargo_type}</p>
-
+                  <p>
+                  제시 운임: {order.freight_price ? `${order.freight_price}원` : "미기입"}
+</p>
                   <p>
                     상차: {order.pickup_date}{" "}
                     {order.pickup_time_flexible
