@@ -13,7 +13,6 @@ export default function SignupPage() {
   const [role, setRole] = useState<AccountRole>("customer");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const router = useRouter();
@@ -34,9 +33,11 @@ export default function SignupPage() {
       alert("비밀번호가 일치하지 않습니다.");
       return;
     }
-  
+
+    const phoneId = phone.replace(/[^0-9]/g, "");
+const internalEmail = `${phoneId}@phone.sttplink.com`;
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: internalEmail,
       password,
       options: {
         data: {
@@ -53,7 +54,7 @@ export default function SignupPage() {
         error.message.includes("already been registered") ||
         error.message.includes("already exists")
       ) {
-        alert("이미 가입된 이메일입니다. 로그인해주세요.");
+        alert("이미 가입된 전화번호입니다. 로그인해주세요.");
         return;
       }
     
@@ -62,7 +63,7 @@ export default function SignupPage() {
     }
     
     if (data.user?.identities?.length === 0) {
-      alert("이미 가입된 이메일입니다. 로그인해주세요.");
+      alert("이미 가입된 전화번호입니다. 로그인해주세요.");
       return;
     }
     
@@ -180,19 +181,19 @@ return;
               </label>
 
               <label className="block">
-                <span className="mb-2 block text-sm font-bold text-zinc-700">
-                  이메일
-                </span>
+  <span className="mb-2 block text-sm font-bold text-zinc-700">
+    전화번호
+  </span>
 
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="example@email.com"
-                  className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                />
-              </label>
+  <input
+    type="tel"
+    required
+    value={phone}
+    onChange={(event) => setPhone(event.target.value)}
+    placeholder="010-1234-5678"
+    className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+  />
+</label>
 
               <label className="block">
                 <span className="mb-2 block text-sm font-bold text-zinc-700">

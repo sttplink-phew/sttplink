@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const router = useRouter();
 const supabase = createClient();
@@ -16,10 +16,13 @@ const supabase = createClient();
   async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
   
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const phoneId = phone.replace(/[^0-9]/g, "");
+const internalEmail = `${phoneId}@phone.sttplink.com`;
+
+const { data, error } = await supabase.auth.signInWithPassword({
+  email: internalEmail,
+  password,
+});
   
     if (error) {
       alert(`로그인 오류: ${error.message}`);
@@ -82,20 +85,21 @@ const role = data.user?.user_metadata?.role;
             </div>
 
             <form onSubmit={handleLogin} className="mt-8 space-y-5">
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-zinc-700">
-                  이메일
-                </span>
 
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="example@email.com"
-                  className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                />
-              </label>
+            <label className="block">
+  <span className="mb-2 block text-sm font-bold text-zinc-700">
+    전화번호
+  </span>
+
+  <input
+    type="tel"
+    required
+    value={phone}
+    onChange={(event) => setPhone(event.target.value)}
+    placeholder="010-1234-5678"
+    className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 outline-none transition focus:border-orange-500"
+  />
+</label>
 
               <label className="block">
                 <span className="mb-2 block text-sm font-bold text-zinc-700">

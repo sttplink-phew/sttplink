@@ -182,7 +182,6 @@ export default function HomePage() {
   const [freightPrice, setFreightPrice] = useState("");
   const [customerName, setCustomerName] = useState("");
 const [customerPhone, setCustomerPhone] = useState("");
-const [customerEmail, setCustomerEmail] = useState("");
 const [pickupLocation, setPickupLocation] = useState("");
 const [deliveryLocation, setDeliveryLocation] = useState("");
 const [specialNotes, setSpecialNotes] = useState("");
@@ -249,7 +248,6 @@ self_loading_required: cargoType === "equipment" ? selfLoadingRequired : false,
     payment_timing: paymentTiming || null,
     customer_name: customerName,
 customer_phone: customerPhone,
-customer_email: customerEmail || null,
 edit_code: crypto.randomUUID().slice(0, 8).toUpperCase(),
 status: "open",
 driver_id: null,
@@ -652,18 +650,6 @@ onChange={(e) => setSpecialNotes(e.target.value)}
   </div>
 </div>
 
-<div className="mt-4">
-  <label className="mb-2 block text-sm font-bold text-zinc-700">
-    이메일 <span className="font-normal text-zinc-400">(선택)</span>
-  </label>
-  <input
-    type="email"
-    value={customerEmail}
-    onChange={(e) => setCustomerEmail(e.target.value)}
-    placeholder="예: example@gmail.com"
-    className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-  />
-</div>
                 <div className="mt-5">
   <label className="mb-2 block text-sm font-bold text-zinc-700">
     제시 운임
