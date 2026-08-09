@@ -137,20 +137,41 @@ function toggleCargo(cargo: string) {
       : [...current, cargo]
   );
 }
+
 function toggleLoad(load: string) {
-    setSelectedLoad((current) =>
-      current.includes(load)
-        ? current.filter((item) => item !== load)
-        : [...current, load]
-    );
-  }
+  setSelectedLoad((current) => {
+    const isTonOption = load.endsWith("톤 이하");
+
+    if (isTonOption) {
+      const withoutTonOptions = current.filter(
+        (item) => !item.endsWith("톤 이하")
+      );
+
+      return current.includes(load)
+        ? withoutTonOptions
+        : [...withoutTonOptions, load];
+    }
+
+    return current.includes(load)
+      ? current.filter((item) => item !== load)
+      : [...current, load];
+  });
+}
+
   function toggleRegion(region: string) {
-    setSelectedRegion((current) =>
-      current.includes(region)
-        ? current.filter((item) => item !== region)
-        : [...current, region]
-    );
+    setSelectedRegion((current) => {
+      if (region === "전국") {
+        return current.includes("전국") ? [] : ["전국"];
+      }
+  
+      const withoutAll = current.filter((item) => item !== "전국");
+  
+      return withoutAll.includes(region)
+        ? withoutAll.filter((item) => item !== region)
+        : [...withoutAll, region];
+    });
   }
+
   function toggleBusiness(item: string) {
     setSelectedBusiness((current) =>
       current.includes(item)

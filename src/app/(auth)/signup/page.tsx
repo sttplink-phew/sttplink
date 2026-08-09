@@ -181,21 +181,6 @@ return;
               </label>
 
               <label className="block">
-  <span className="mb-2 block text-sm font-bold text-zinc-700">
-    전화번호
-  </span>
-
-  <input
-    type="tel"
-    required
-    value={phone}
-    onChange={(event) => setPhone(event.target.value)}
-    placeholder="010-1234-5678"
-    className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-  />
-</label>
-
-              <label className="block">
                 <span className="mb-2 block text-sm font-bold text-zinc-700">
                   비밀번호
                 </span>
