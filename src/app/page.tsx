@@ -186,6 +186,9 @@ const [customerEmail, setCustomerEmail] = useState("");
 const [pickupLocation, setPickupLocation] = useState("");
 const [deliveryLocation, setDeliveryLocation] = useState("");
 const [specialNotes, setSpecialNotes] = useState("");
+const [weightTons, setWeightTons] = useState("");
+const [hazardous, setHazardous] = useState(false);
+const [selfLoadingRequired, setSelfLoadingRequired] = useState(false);
 const [paymentMethod, setPaymentMethod] = useState("");
 const [paymentTiming, setPaymentTiming] = useState("");
   const selectedCargo = useMemo(
@@ -239,6 +242,9 @@ async function submitOrder() {
     pickup_location: pickupLocation,
     delivery_location: deliveryLocation,
     special_notes: specialNotes || null,
+    weight_tons: weightTons ? Number(weightTons) : null,
+hazardous: hazardous,
+self_loading_required: cargoType === "equipment" ? selfLoadingRequired : false,
     payment_method: paymentMethod || null,
     payment_timing: paymentTiming || null,
     customer_name: customerName,
@@ -255,6 +261,7 @@ driver_id: null,
     alert("오더 등록 중 오류가 발생했습니다.\n" + error.message);
     return;
   }
+
   if (newOrder?.id) {
     try {
       await fetch("/api/notifications/queue", {
@@ -270,7 +277,7 @@ driver_id: null,
       console.error("알림 대기열 생성 오류:", queueError);
     }
   }
-  
+
   setStep(3);
 }
 
@@ -548,7 +555,44 @@ onChange={(e) => setSpecialNotes(e.target.value)}
                     className="w-full resize-none rounded-xl border border-zinc-200 p-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
                   />
                 </label>
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+  <label>
+    <span className="mb-2 block text-xs font-bold text-zinc-500">
+      화물 중량 / 톤
+    </span>
+    <input
+      type="number"
+      min="0"
+      step="0.1"
+      value={weightTons}
+      onChange={(e) => setWeightTons(e.target.value)}
+      placeholder="예: 12.5"
+      className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+    />
+  </label>
 
+  <div className="flex flex-col justify-end gap-3">
+    <label className="flex h-14 items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900">
+      <input
+        type="checkbox"
+        checked={hazardous}
+        onChange={(e) => setHazardous(e.target.checked)}
+      />
+      <span className="font-bold">위험물 운송</span>
+    </label>
+
+    {cargoType === "equipment" && (
+      <label className="flex h-14 items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900">
+        <input
+          type="checkbox"
+          checked={selfLoadingRequired}
+          onChange={(e) => setSelfLoadingRequired(e.target.checked)}
+        />
+        <span className="font-bold">직접 상차 필요</span>
+      </label>
+    )}
+  </div>
+</div>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <label>
   <span className="mb-2 block text-xs font-bold text-zinc-500">
