@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     }
     const cargoTypeMap: Record<string, string> = {
         container: "컨테이너",
-        construction: "건설장비",
+        equipment: "건설장비",
         heavy: "중량물",
       };
       
