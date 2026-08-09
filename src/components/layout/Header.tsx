@@ -51,7 +51,7 @@ export function Header() {
             href="/orders"
             className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-300 transition hover:bg-white/5 hover:text-white sm:block"
           >
-            내 오더
+            배차 가능한 오더
           </Link>
 
           <Link
