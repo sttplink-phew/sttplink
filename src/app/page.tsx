@@ -260,6 +260,8 @@ driver_id: null,
     return;
   }
 
+  alert("새 오더 ID: " + newOrder?.id);
+  
   if (newOrder?.id) {
     try {
       await fetch("/api/notifications/queue", {
