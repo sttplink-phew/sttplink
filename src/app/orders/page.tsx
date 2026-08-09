@@ -43,6 +43,12 @@ export default function OrdersPage() {
     setLoading(false);
   }
   async function acceptOrder(orderId: number) {
+    const confirmed = window.confirm(
+      "이 오더를 배차받으시겠습니까?\n\n배차 확정 후 화주 연락처와 상세 운송정보를 확인할 수 있습니다."
+    );
+  
+    if (!confirmed) return;
+  
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -53,22 +59,30 @@ export default function OrdersPage() {
       return;
     }
   
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("orders")
       .update({
         driver_id: user.id,
         status: "assigned",
       })
       .eq("id", orderId)
-      .eq("status", "open");
+      .eq("status", "open")
+      .select("id")
+      .maybeSingle();
   
     if (error) {
       alert("배차 처리 중 오류가 발생했습니다.\n" + error.message);
       return;
     }
   
+    if (!data) {
+      alert("이미 다른 운송차주가 배차받은 오더입니다.");
+      loadOrders();
+      return;
+    }
+  
     alert("배차가 완료되었습니다.");
-    loadOrders();
+    window.location.href = `/orders/${orderId}`;
   }
 
   return (

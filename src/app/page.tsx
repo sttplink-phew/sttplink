@@ -183,6 +183,11 @@ export default function HomePage() {
   const [customerName, setCustomerName] = useState("");
 const [customerPhone, setCustomerPhone] = useState("");
 const [customerEmail, setCustomerEmail] = useState("");
+const [pickupLocation, setPickupLocation] = useState("");
+const [deliveryLocation, setDeliveryLocation] = useState("");
+const [specialNotes, setSpecialNotes] = useState("");
+const [paymentMethod, setPaymentMethod] = useState("");
+const [paymentTiming, setPaymentTiming] = useState("");
   const selectedCargo = useMemo(
     () => cargoItems.find((item) => item.id === cargoType),
     [cargoType]
@@ -220,7 +225,9 @@ async function submitOrder() {
     alert("이름/업체명과 연락처를 입력해주세요.");
     return;
   }
-  const { error } = await supabase.from("orders").insert({
+  const { data: newOrder, error } = await supabase
+  .from("orders")
+  .insert({
     cargo_type: cargoType,
     pickup_date: pickupDate,
     pickup_time: pickupTime || null,
@@ -229,19 +236,41 @@ async function submitOrder() {
     delivery_time: deliveryTime || null,
     delivery_time_flexible: deliveryTimeFlexible,
     freight_price: freightPrice,
+    pickup_location: pickupLocation,
+    delivery_location: deliveryLocation,
+    special_notes: specialNotes || null,
+    payment_method: paymentMethod || null,
+    payment_timing: paymentTiming || null,
     customer_name: customerName,
 customer_phone: customerPhone,
 customer_email: customerEmail || null,
 edit_code: crypto.randomUUID().slice(0, 8).toUpperCase(),
 status: "open",
-    driver_id: null,
-  });
+driver_id: null,
+})
+.select("id")
+.single();
 
   if (error) {
     alert("오더 등록 중 오류가 발생했습니다.\n" + error.message);
     return;
   }
-
+  if (newOrder?.id) {
+    try {
+      await fetch("/api/notifications/queue", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          orderId: newOrder.id,
+        }),
+      });
+    } catch (queueError) {
+      console.error("알림 대기열 생성 오류:", queueError);
+    }
+  }
+  
   setStep(3);
 }
 
@@ -484,6 +513,8 @@ status: "open",
 
                     <input
                       type="text"
+                      value={pickupLocation}
+onChange={(e) => setPickupLocation(e.target.value)}
                       placeholder="상차 장소를 입력하세요"
                       className="h-14 w-full rounded-xl border border-zinc-200 px-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
                     />
@@ -496,6 +527,8 @@ status: "open",
 
                     <input
                       type="text"
+                      value={deliveryLocation}
+onChange={(e) => setDeliveryLocation(e.target.value)}
                       placeholder="하차 장소를 입력하세요"
                       className="h-14 w-full rounded-xl border border-zinc-200 px-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
                     />
@@ -509,12 +542,45 @@ status: "open",
 
                   <textarea
                     rows={7}
+                    value={specialNotes}
+onChange={(e) => setSpecialNotes(e.target.value)}
                     placeholder="화물 크기, 무게, 장비 조건, 현장 상황 등 기사에게 전달할 내용을 자유롭게 입력하세요."
                     className="w-full resize-none rounded-xl border border-zinc-200 p-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
                   />
                 </label>
 
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <label>
+  <span className="mb-2 block text-xs font-bold text-zinc-500">
+    지급방법
+  </span>
+  <select
+    value={paymentMethod}
+    onChange={(e) => setPaymentMethod(e.target.value)}
+    className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+  >
+    <option value="">선택하세요</option>
+    <option value="현금">현금</option>
+    <option value="계좌이체">계좌이체</option>
+    <option value="카드">카드</option>
+  </select>
+</label>
+
+<label>
+  <span className="mb-2 block text-xs font-bold text-zinc-500">
+    지급시점
+  </span>
+  <select
+    value={paymentTiming}
+    onChange={(e) => setPaymentTiming(e.target.value)}
+    className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+  >
+    <option value="">선택하세요</option>
+    <option value="즉시">즉시</option>
+    <option value="당일">당일</option>
+    <option value="기타">기타</option>
+  </select>
+</label>
   <div>
     <label className="mb-2 block text-sm font-bold text-zinc-700">
       이름 / 업체명
@@ -559,28 +625,29 @@ status: "open",
     제시 운임
   </label>
 
-  <div className="flex h-14 w-full items-center rounded-xl border border-zinc-200 bg-white px-4 focus-within:border-orange-500 focus-within:ring-2">
-  <span className="mr-3 font-bold text-zinc-700">금</span>
-
   <input
-    type="text"
-    value={freightPrice}
-    onChange={(e) => {
-      const numbers = e.target.value.replace(/[^0-9]/g, "");
-      setFreightPrice(
-        numbers ? Number(numbers).toLocaleString("ko-KR") : ""
-      );
-    }}
-    placeholder="예: 450,000"
-    className="min-w-0 flex-1 bg-transparent text-zinc-900 outline-none"
-  />
+  type="text"
+  value={freightPrice}
+  onChange={(e) => {
+    const numbers = e.target.value.replace(/[^0-9]/g, "");
+    setFreightPrice(
+      numbers ? Number(numbers).toLocaleString("ko-KR") : ""
+    );
+  }}
+  placeholder="예: 450,000"
+  className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2"
+/>
 
-  <span className="ml-3 font-bold text-zinc-700">원</span>
+<div className="mt-4 flex flex-col gap-2 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm leading-6 text-orange-800 sm:flex-row sm:items-center sm:justify-between">
+  <span>
+    제시 운임은 추가 장비, 대기시간, 작업 조건 및 현장 상황에 따라 실제 운임과 달라질 수 있습니다.
+  </span>
+
+  <span className="shrink-0 text-base font-bold">
+    금 {freightPrice || "0"} 원
+  </span>
 </div>
-                <div className="mt-4 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm leading-6 text-orange-800">
-  제시 운임은 추가 장비, 대기시간, 작업 조건 및 현장 상황에 따라
-  실제 운임과 달라질 수 있습니다.
-                </div>
+</div>
 
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
                   <button

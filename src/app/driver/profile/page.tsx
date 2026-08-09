@@ -180,6 +180,7 @@ function toggleLoad(load: string) {
       business_info: selectedBusiness,
       vehicle_number: vehicleNumber,
       business_number: businessNumber,
+      phone: user.user_metadata?.phone || null,
       memo,
     }, { onConflict: "user_id" });
   
