@@ -104,7 +104,7 @@ function DatePickerField({
       </span>
 
       <div
-        className="relative cursor-pointer"
+        className="relative min-w-0 max-w-full cursor-pointer"
         onClick={openCalendar}
       >
         <input
@@ -113,7 +113,7 @@ function DatePickerField({
           min={min}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-14 w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-4 pr-12 font-bold text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+          className="h-14 w-full min-w-0 max-w-full rounded-xl ...
         />
 
         <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xl">
@@ -748,7 +748,7 @@ setMonthOrderCount(monthCount ?? 0);
                     상차 일정
                   </h3>
 
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div className="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
                     <DatePickerField
                       label="상차 날짜"
                       value={pickupDate}
@@ -758,7 +758,7 @@ setMonthOrderCount(monthCount ?? 0);
                       }
                     />
 
-                    <div>
+<div className="min-w-0">
                       <span className="mb-2 block text-xs font-bold text-zinc-500">
                         상차 시간
                       </span>
@@ -817,7 +817,7 @@ setMonthOrderCount(monthCount ?? 0);
                     하차 일정
                   </h3>
 
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div className="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
                     <DatePickerField
                       label="하차 날짜"
                       value={deliveryDate}
@@ -829,7 +829,7 @@ setMonthOrderCount(monthCount ?? 0);
                       }
                     />
 
-                    <div>
+<div className="min-w-0">
                       <span className="mb-2 block text-xs font-bold text-zinc-500">
                         하차 시간
                       </span>
