@@ -21,14 +21,14 @@ export function Hero() {
       {/* 아래쪽 그라데이션 */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/20 to-black/80" />
 
-      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] max-w-7xl flex-col justify-center px-4 py-20 sm:px-6 lg:px-8">
+      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] max-w-7xl flex-col justify-center px-3 py-20 sm:px-6 lg:px-8">
         {/* 메인 문구 */}
         <div className="max-w-4xl">
           <p className="mb-4 text-sm font-semibold tracking-[0.25em] text-orange-500 sm:text-base">
             STTPLINK
           </p>
 
-          <h1 className="text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl">
+          <h1 className="text-3xl font-bold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl">
             필요한 운송을
             <br />
             <span className="text-orange-500">빠르게 연결합니다</span>
@@ -71,7 +71,7 @@ export function Hero() {
             </button>
 
             {/* 상차 시간 */}
-            <div className="flex min-h-[96px] flex-col justify-center rounded-xl bg-white px-5">
+            <div className="flex min-h-[80px] flex-col justify-center rounded-xl bg-white px-4 sm:min-h-[96px] sm:px-5">
               <span className="text-xs font-medium text-gray-500">
                 상차 시간
               </span>
@@ -98,7 +98,7 @@ export function Hero() {
             </div>
 
             {/* 하차 시간 */}
-            <div className="flex min-h-[96px] flex-col justify-center rounded-xl bg-white px-5">
+            <div className="flex min-h-[80px] flex-col justify-center rounded-xl bg-white px-4 sm:min-h-[96px] sm:px-5">
               <span className="text-xs font-medium text-gray-500">
                 희망 하차 시간
               </span>
@@ -127,7 +127,7 @@ export function Hero() {
             {/* 다음 버튼 */}
             <Link
               href="/order"
-              className="flex min-h-[96px] items-center justify-center rounded-xl bg-orange-600 px-8 text-lg font-bold text-white transition hover:bg-orange-500"
+              className="flex min-h-[72px] items-center justify-center rounded-xl bg-orange-600 px-6 text-base font-bold text-white transition hover:bg-orange-500 sm:min-h-[96px] sm:px-8 sm:text-lg"
             >
               다음
               <svg
