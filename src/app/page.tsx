@@ -94,13 +94,9 @@ function DatePickerField({
 
     if (!input) return;
 
-    if ("showPicker" in input) {
-      input.showPicker();
-    } else {
-      input.click();
-    }
+    input.showPicker();
   }
-
+  
   return (
     <div>
       <span className="mb-2 block text-xs font-bold text-zinc-500">
