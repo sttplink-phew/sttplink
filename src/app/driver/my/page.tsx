@@ -231,7 +231,7 @@ export default function DriverMyPage() {
 
             <Link
               href="/daily"
-              className="rounded-2xl border border-white/10 bg-zinc-900 p-5"
+              className="rounded-2xl border border-white/10 bg-zinc-900 p-5 transition hover:border-orange-500"
             >
               <div className="text-3xl">📊</div>
 
@@ -244,33 +244,39 @@ export default function DriverMyPage() {
               </div>
             </Link>
 
-            <div className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
-              <div className="text-3xl">⚓</div>
+            <Link
+  href="/terminal"
+  className="rounded-2xl border border-white/10 bg-zinc-900 p-5 transition hover:border-orange-500"
+>
+  <div className="text-3xl">⚓</div>
 
-              <div className="mt-3 text-lg font-black">
-                내 정보 조회
-              </div>
+  <div className="mt-3 text-lg font-black">
+    터미널 정보
+  </div>
 
-              <div className="mt-1 text-sm text-zinc-400">
-                GWCT · 허치슨
-              </div>
-            </div>
+  <div className="mt-1 text-sm text-zinc-400">
+    GWCT · 허치슨
+  </div>
+</Link>
 
-            <div className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
-              <div className="text-3xl">🔧</div>
+            <Link
+  href="/maintenance"
+  className="rounded-2xl border border-white/10 bg-zinc-900 p-5 transition hover:border-orange-500"
+>
+  <div className="text-3xl">🔧</div>
 
-              <div className="mt-3 text-lg font-black">
-                차량 관리
-              </div>
+  <div className="mt-3 text-lg font-black">
+    차량 관리
+  </div>
 
-              <div className="mt-1 text-sm text-zinc-400">
-                고장 · 수리 · 정비
-              </div>
-            </div>
+  <div className="mt-1 text-sm text-zinc-400">
+    고장 · 수리 · 정비
+  </div>
+</Link>
 
             <Link
               href="/orders"
-              className="rounded-2xl border border-white/10 bg-zinc-900 p-5"
+              className="rounded-2xl border border-white/10 bg-zinc-900 p-5 transition hover:border-orange-500"
             >
               <div className="text-3xl">🚛</div>
 

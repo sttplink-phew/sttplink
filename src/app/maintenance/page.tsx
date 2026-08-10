@@ -139,7 +139,23 @@ export default function MaintenancePage() {
 
     setMyLogs((data ?? []) as MaintenanceLog[]);
   }
-
+  async function deleteMaintenanceLog(id: number) {
+    const ok = window.confirm("이 정비기록을 삭제하시겠습니까?");
+    if (!ok) return;
+  
+    const { error } = await supabase
+      .from("maintenance_logs")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId);
+  
+    if (error) {
+      alert(`삭제 오류\n${error.message}`);
+      return;
+    }
+  
+    await loadMyLogs(userId);
+  }
   async function loadSharedLogs() {
     const { data, error } = await supabase
       .from("maintenance_logs")
@@ -323,10 +339,10 @@ export default function MaintenancePage() {
               <div className="space-y-4">
                 {myLogs.map((log) => (
                   <MaintenanceCard
-                    key={log.id}
-                    log={log}
-                    showShared
-                  />
+                  key={log.id}
+                  log={log}
+                  onDelete={deleteMaintenanceLog}
+                />
                 ))}
               </div>
             )}
@@ -574,7 +590,7 @@ export default function MaintenancePage() {
 
         .inputStyle:focus {
           border-color: #ea580c;
-        }
+        function MaintenanceCard}
       `}</style>
     </main>
   );
@@ -599,12 +615,15 @@ function Field({
 }
 
 function MaintenanceCard({
-  log,
-  showShared = false,
-}: {
-  log: MaintenanceLog;
-  showShared?: boolean;
-}) {
+    log,
+    showShared = false,
+    onDelete,
+  }: {
+    log: MaintenanceLog;
+    showShared?: boolean;
+    onDelete?: (id: number) => void;
+  }) {
+
   return (
     <article className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
       <div className="flex items-start justify-between gap-4">
@@ -619,8 +638,18 @@ function MaintenanceCard({
         </div>
 
         <span className="shrink-0 text-xs text-zinc-500">
-          {log.maintenance_date}
-        </span>
+  {log.maintenance_date}
+</span>
+
+{!showShared && onDelete && (
+  <button
+    type="button"
+    onClick={() => onDelete(log.id)}
+    className="shrink-0 text-xs font-bold text-red-400 hover:text-red-300"
+  >
+    삭제
+  </button>
+)}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2 text-xs">

@@ -162,7 +162,7 @@ export default function HomePage() {
   const [vehicleNumber, setVehicleNumber] = useState("");
   const [truckInfo, setTruckInfo] = useState("");
   type TerminalInfo = {
-    
+
     hasInfo?: boolean;
     hasAnyInfo?: boolean;
     counts?: {
@@ -572,16 +572,6 @@ setMonthOrderCount(monthCount ?? 0);
       ? (
           <>
             <div>{`내 차량 ${vehicleNumber}`}</div>
-            <button
-  type="button"
-  onClick={(e) => {
-    e.stopPropagation();
-    setTerminalPolling((prev) => !prev);
-  }}
-  className="mt-3 rounded-lg bg-orange-600 px-3 py-2 text-sm font-bold text-white"
->
-  {terminalPolling ? "조회 중지" : "정보 조회 시작"}
-</button>
             {gwctInfo?.hasInfo ? (
               <div className="mt-2 text-orange-400">
                 대통(GWCT) · 반입 {gwctInfo.counts?.inbound ?? 0}건 · 반출{" "}
