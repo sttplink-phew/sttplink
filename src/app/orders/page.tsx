@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 
 type Order = {
@@ -18,6 +19,7 @@ type Order = {
 };
 
 export default function OrdersPage() {
+
   const supabase = createClient();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +90,18 @@ export default function OrdersPage() {
   return (
     <main className="min-h-screen bg-black px-4 py-24 text-white">
       <div className="mx-auto max-w-5xl">
-        <h1 className="mb-8 text-3xl font-bold">배차 가능한 오더</h1>
+      <div className="mb-8 flex items-center justify-between">
+  <h1 className="text-3xl font-bold">
+    배차 가능한 오더
+  </h1>
+
+  <Link
+    href="/"
+    className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-white"
+  >
+    홈
+  </Link>
+</div>
 
         {loading ? (
           <p className="text-zinc-400">오더를 불러오는 중입니다...</p>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -96,7 +96,7 @@ function DatePickerField({
 
     input.showPicker();
   }
-  
+
   return (
     <div>
       <span className="mb-2 block text-xs font-bold text-zinc-500">
@@ -158,15 +158,186 @@ export default function HomePage() {
 
   const [saving, setSaving] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
-
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [vehicleNumber, setVehicleNumber] = useState("");
+  const [truckInfo, setTruckInfo] = useState("");
+  const [gwctInfo, setGwctInfo] = useState<any>(null);
+  const [kitlInfo, setKitlInfo] = useState<any>(null);
+  const [terminalPolling, setTerminalPolling] = useState(false);
+  const [todayFull, setTodayFull] = useState(0);
+  const [todayEmpty, setTodayEmpty] = useState(0);
+  
+  const [monthFull, setMonthFull] = useState(0);
+  const [monthEmpty, setMonthEmpty] = useState(0);
+  
+  const [openOrderCount, setOpenOrderCount] = useState(0);
+  const [monthOrderCount, setMonthOrderCount] = useState(0);
   const selectedCargo = useMemo(
     () => cargoItems.find((item) => item.id === cargoType),
     [cargoType]
   );
 
   const today = getLocalDateValue();
+  useEffect(() => {
+    async function loadHomeStatus() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+  
+      if (!user) {
+        setLoggedIn(false);
+        return;
+      }
+  
+      setLoggedIn(true);
+  
+      // 내 차량 정보
+      const { data: driver } = await supabase
+        .from("drivers")
+        .select("vehicle_number, truck_brand, truck_model")
+        .eq("user_id", user.id)
+        .maybeSingle();
+  
+      if (driver) {
+        setVehicleNumber(driver.vehicle_number ?? "");
+  
+        const info = [driver.truck_brand, driver.truck_model]
+          .filter(Boolean)
+          .join(" ");
+  
+        setTruckInfo(info);
+      }
+  
+      {loggedIn ? "운행 현황" : "오늘 운행"}
+      const { data: todayLog } = await supabase
+        .from("daily_logs")
+        .select("full20, full40, danger20, danger40, empty20, empty40")
+        .eq("user_id", user.id)
+        .eq("work_date", today)
+        .maybeSingle();
+  
+      if (todayLog) {
+        setTodayFull(
+          (todayLog.full20 ?? 0) +
+            (todayLog.full40 ?? 0) +
+            (todayLog.danger20 ?? 0) +
+            (todayLog.danger40 ?? 0)
+        );
+  
+        setTodayEmpty(
+          (todayLog.empty20 ?? 0) +
+            (todayLog.empty40 ?? 0)
+        );
+      }
+  
+      // 이번 달 운행
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const monthStart = `${year}-${month}-01`;
+      const { count: monthCount } = await supabase
+  .from("orders")
+  .select("id", { count: "exact", head: true })
+  .gte("created_at", `${monthStart}T00:00:00`);
 
-  const canGoNext = Boolean(
+setMonthOrderCount(monthCount ?? 0);
+  
+      const { data: monthLogs } = await supabase
+        .from("daily_logs")
+        .select("full20, full40, danger20, danger40, empty20, empty40")
+        .eq("user_id", user.id)
+        .gte("work_date", monthStart);
+  
+      if (monthLogs) {
+        let full = 0;
+        let empty = 0;
+  
+        monthLogs.forEach((log) => {
+          full +=
+            (log.full20 ?? 0) +
+            (log.full40 ?? 0) +
+            (log.danger20 ?? 0) +
+            (log.danger40 ?? 0);
+  
+          empty +=
+            (log.empty20 ?? 0) +
+            (log.empty40 ?? 0);
+        });
+  
+        setMonthFull(full);
+        setMonthEmpty(empty);
+      }
+  
+      // 현재 알바
+      const { count } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "open");
+  
+      setOpenOrderCount(count ?? 0);
+    }
+  
+    loadHomeStatus();
+  }, [supabase, today]);
+  async function checkGwct() {
+    
+    if (!vehicleNumber) return;
+  
+    const truckNo = vehicleNumber.slice(-4);
+  
+    if (!/^\d{4}$/.test(truckNo)) return;
+  
+    try {
+      const res = await fetch("/api/terminal/gwct", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ truckNo }),
+      });
+  
+      const data = await res.json();
+      setGwctInfo(data);
+    } catch (error) {
+      console.error("GWCT 조회 실패:", error);
+    }
+  }
+  async function checkKitl() {
+    if (!vehicleNumber) return;
+  
+    const truckNo = vehicleNumber.slice(-4);
+  
+    if (!/^\d{4}$/.test(truckNo)) return;
+  
+    try {
+      const res = await fetch("/api/terminal/kitl", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ truckNo }),
+      });
+  
+      const data = await res.json();
+      setKitlInfo(data);
+    } catch (error) {
+      console.error("KITL 조회 실패:", error);
+    }
+  }
+  useEffect(() => {
+    if (!terminalPolling) return;
+  
+    checkGwct();
+    checkKitl();
+    
+    const timer = setInterval(() => {
+      checkGwct();
+      checkKitl();
+    }, 60000);
+  
+    return () => clearInterval(timer);
+  }, [terminalPolling, vehicleNumber]);
+    const canGoNext = Boolean(
     cargoType &&
       pickupDate &&
       (pickupTime || pickupTimeFlexible) &&
@@ -365,11 +536,13 @@ export default function HomePage() {
                   <div className="text-3xl">📊</div>
 
                   <div className="mt-3 text-lg font-bold">
-                    오늘 운행
+                  {loggedIn ? "운행 현황" : "오늘 운행"}
                   </div>
 
                   <div className="mt-1 text-sm text-zinc-400">
-                    오늘 회전수 기록
+                  {loggedIn
+  ? `이번 달 FULL ${monthFull} · EMPTY ${monthEmpty}`
+  : "오늘 회전수 기록"}
                   </div>
                 </Link>
 
@@ -380,18 +553,66 @@ export default function HomePage() {
                   <div className="text-3xl">⚓</div>
 
                   <div className="mt-3 text-lg font-bold">
-                    내 정보 조회
+                    터미널 정보
                   </div>
 
                   <div className="mt-1 text-sm text-zinc-400">
-                    GWCT · 허치슨 확인
-                  </div>
+  {loggedIn
+    ? vehicleNumber
+      ? (
+          <>
+            <div>{`내 차량 ${vehicleNumber}`}</div>
+            <button
+  type="button"
+  onClick={(e) => {
+    e.stopPropagation();
+    setTerminalPolling((prev) => !prev);
+  }}
+  className="mt-3 rounded-lg bg-orange-600 px-3 py-2 text-sm font-bold text-white"
+>
+  {terminalPolling ? "조회 중지" : "정보 조회 시작"}
+</button>
+            {gwctInfo?.hasInfo ? (
+              <div className="mt-2 text-orange-400">
+                대통(GWCT) · 반입 {gwctInfo.counts?.inbound ?? 0}건 · 반출{" "}
+                {gwctInfo.counts?.outbound ?? 0}건
+              </div>
+            ) : gwctInfo ? (
+              <div className="mt-2">대통(GWCT) · 정보 없음</div>
+            ) : terminalPolling ? (
+              <div className="mt-2">대통(GWCT) · 조회중...</div>
+            ) : (
+              <div className="mt-2">대통(GWCT) · 조회 대기</div>
+            )}
+            {kitlInfo?.hasInfo ? (
+  <div className="mt-2 text-blue-400">
+    국제(KITL) · 반입 {kitlInfo.counts?.inbound ?? 0}건 · 반출{" "}
+    {kitlInfo.counts?.outbound ?? 0}건
+  </div>
+) : kitlInfo?.hasAnyInfo ? (
+  <div className="mt-2 text-zinc-400">
+    국제(KITL) · 완료된 정보만 있음
+  </div>
+) : kitlInfo ? (
+  <div className="mt-2 text-zinc-400">
+    국제(KITL) · 정보 없음
+  </div>
+) : terminalPolling ? (
+  <div className="mt-2 text-zinc-400">
+    국제(KITL) · 조회중...
+  </div>
+) : null}
+          </>
+        )
+      : "차량정보 등록 필요"
+    : "로그인 후 터미널 정보를 확인할 수 있습니다."}
+</div>
                 </button>
 
-                <button
-                  type="button"
-                  className="rounded-2xl border border-white/10 bg-zinc-900 p-5 text-left transition hover:border-orange-500"
-                >
+                <Link
+  href="/maintenance"
+  className="rounded-2xl border border-white/10 bg-zinc-900 p-5 text-left transition hover:border-orange-500"
+>
                   <div className="text-3xl">🔧</div>
 
                   <div className="mt-3 text-lg font-bold">
@@ -399,9 +620,11 @@ export default function HomePage() {
                   </div>
 
                   <div className="mt-1 text-sm text-zinc-400">
-                    고장 · 수리 · 정비업체
+                  {loggedIn
+  ? truckInfo || "차량정보 확인"
+  : "고장 · 수리 · 정비업체"}
                   </div>
-                </button>
+                  </Link>
 
                 <Link
                   href="/orders"
@@ -414,7 +637,9 @@ export default function HomePage() {
                   </div>
 
                   <div className="mt-1 text-sm text-zinc-400">
-                    남는 시간 일거리 찾기
+                  {loggedIn
+  ? `현재 알바 ${openOrderCount}건`
+  : "남는 시간 일거리 찾기"}
                   </div>
                 </Link>
                 <button
@@ -432,7 +657,9 @@ export default function HomePage() {
   </div>
 
   <div className="mt-1 text-sm text-zinc-400">
-    컨테이너 일거리 등록
+  {loggedIn
+  ? `이번 달 총 등록 ${monthOrderCount}건`
+  : "컨테이너 일거리 등록"}
   </div>
 </button>
               </div>
@@ -455,7 +682,9 @@ export default function HomePage() {
               <section className="mt-10 rounded-3xl border border-white/10 bg-white p-5 text-zinc-900 shadow-2xl sm:p-7">
 
                 <p className="text-xs font-bold text-orange-600">
-                  알바 등록
+                {loggedIn
+  ? `이번 달 총 등록 ${monthOrderCount}건`
+  : "컨테이너 일거리 등록"}
                 </p>
 
                 <h2 className="mt-2 text-2xl font-black">
