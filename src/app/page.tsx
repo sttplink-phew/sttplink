@@ -161,8 +161,18 @@ export default function HomePage() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [vehicleNumber, setVehicleNumber] = useState("");
   const [truckInfo, setTruckInfo] = useState("");
-  const [gwctInfo, setGwctInfo] = useState<any>(null);
-  const [kitlInfo, setKitlInfo] = useState<any>(null);
+  type TerminalInfo = {
+    
+    hasInfo?: boolean;
+    hasAnyInfo?: boolean;
+    counts?: {
+      inbound?: number;
+      outbound?: number;
+    };
+  };
+  
+  const [gwctInfo, setGwctInfo] = useState<TerminalInfo | null>(null);
+  const [kitlInfo, setKitlInfo] = useState<TerminalInfo | null>(null);
   const [terminalPolling, setTerminalPolling] = useState(false);
   const [todayFull, setTodayFull] = useState(0);
   const [todayEmpty, setTodayEmpty] = useState(0);
