@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -9,25 +10,29 @@ import { createClient } from "@/utils/supabase/client";
 type DriverProfile = {
   id: number;
   user_id: string;
-  vehicle_types: string[];
-  cargo_types: string[];
-  load_conditions: string[];
-  regions: string[];
-  business_info: string[];
   vehicle_number: string | null;
-  business_number: string | null;
-  memo: string | null;
+};
+
+type DailyLog = {
+  work_date: string;
+  full20: number;
+  full40: number;
+  danger20: number;
+  danger40: number;
+  empty20: number;
+  empty40: number;
 };
 
 export default function DriverMyPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [profile, setProfile] = useState<DriverProfile | null>(null);
+  const [logs, setLogs] = useState<DailyLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadProfile() {
+    async function loadMyPage() {
       const {
         data: { user },
         error: userError,
@@ -38,36 +43,99 @@ export default function DriverMyPage() {
         return;
       }
 
-      const { data, error } = await supabase
-  .from("drivers")
-  .select("*")
-  .eq("user_id", user.id)
-  .limit(1);
+      const { data: driverData, error: driverError } = await supabase
+        .from("drivers")
+        .select("id, user_id, vehicle_number")
+        .eq("user_id", user.id)
+        .limit(1);
 
-      if (error) {
-        alert(`운송차주 정보 조회 오류: ${error.message}`);
+      if (driverError) {
+        console.error(driverError);
         setLoading(false);
         return;
       }
 
-      if (!data || data.length === 0) {
+      if (!driverData || driverData.length === 0) {
         router.push("/driver/profile");
         return;
       }
-      
-      setProfile(data[0]);
+
+      setProfile(driverData[0]);
+
+      const now = new Date();
+
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+
+      const monthStart = `${year}-${month}-01`;
+
+      const { data: logData, error: logError } = await supabase
+        .from("daily_logs")
+        .select(
+          "work_date, full20, full40, danger20, danger40, empty20, empty40"
+        )
+        .eq("user_id", user.id)
+        .gte("work_date", monthStart)
+        .order("work_date", { ascending: false });
+
+      if (logError) {
+        console.error(logError);
+        setLogs([]);
+      } else {
+        setLogs(logData ?? []);
+      }
+
       setLoading(false);
     }
 
-    loadProfile();
+    loadMyPage();
   }, [router, supabase]);
+
+  const fullTotal = logs.reduce(
+    (sum, log) =>
+      sum +
+      (log.full20 ?? 0) +
+      (log.full40 ?? 0) +
+      (log.danger20 ?? 0) +
+      (log.danger40 ?? 0),
+    0
+  );
+
+  const emptyTotal = logs.reduce(
+    (sum, log) =>
+      sum +
+      (log.empty20 ?? 0) +
+      (log.empty40 ?? 0),
+    0
+  );
+
+  const dangerTotal = logs.reduce(
+    (sum, log) =>
+      sum +
+      (log.danger20 ?? 0) +
+      (log.danger40 ?? 0),
+    0
+  );
+
+  const workDays = logs.filter((log) => {
+    const total =
+      (log.full20 ?? 0) +
+      (log.full40 ?? 0) +
+      (log.danger20 ?? 0) +
+      (log.danger40 ?? 0) +
+      (log.empty20 ?? 0) +
+      (log.empty40 ?? 0);
+
+    return total > 0;
+  }).length;
 
   if (loading) {
     return (
       <>
         <Header />
-        <main className="min-h-screen bg-[#080808] px-4 pt-28 text-white">
-          <div className="mx-auto max-w-5xl">불러오는 중...</div>
+
+        <main className="flex min-h-screen items-center justify-center bg-[#080808] text-white">
+          불러오는 중...
         </main>
       </>
     );
@@ -81,79 +149,206 @@ export default function DriverMyPage() {
     <>
       <Header />
 
-      <main className="min-h-screen bg-[#080808] px-4 pb-20 pt-28 text-white sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-5xl">
-          <div className="mb-8">
-            <p className="text-sm font-bold text-orange-500">STTPLINK</p>
+      <main className="min-h-screen bg-[#080808] px-4 pb-16 pt-24 text-white">
+        <div className="mx-auto max-w-lg">
 
-            <h1 className="mt-2 text-3xl font-black sm:text-4xl">
-              내 운송차주 정보
+          <div className="mb-6">
+            <p className="text-xs font-bold text-orange-500">
+              STTP LINK
+            </p>
+
+            <h1 className="mt-1 text-2xl font-black">
+              내 운행
             </h1>
 
-            <p className="mt-3 text-zinc-400">
-              현재 등록된 차량 및 운송 가능 정보를 확인할 수 있습니다.
-            </p>
+            {profile.vehicle_number && (
+              <p className="mt-2 text-sm text-zinc-400">
+                차량번호 {profile.vehicle_number}
+              </p>
+            )}
           </div>
 
-          <section className="rounded-3xl bg-white p-6 text-zinc-900 shadow-2xl sm:p-8">
-            <div className="grid gap-6 sm:grid-cols-2">
-              <InfoBox title="차량 종류" items={profile.vehicle_types} />
-              <InfoBox title="적재 가능 화물" items={profile.cargo_types} />
-              <InfoBox title="적재 조건" items={profile.load_conditions} />
-              <InfoBox title="운송 가능 지역" items={profile.regions} />
-              <InfoBox title="보험 / 사업자 정보" items={profile.business_info} />
+          <section className="rounded-3xl border border-white/10 bg-zinc-900 p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-black">
+                이번 달 운행
+              </h2>
 
-              <InfoBox
-                title="차량번호"
-                items={profile.vehicle_number ? [profile.vehicle_number] : []}
-              />
+              <span className="text-sm text-zinc-500">
+                현재까지
+              </span>
+            </div>
 
-              <InfoBox
-                title="사업자번호"
-                items={profile.business_number ? [profile.business_number] : []}
-              />
+            <div className="mt-5 grid grid-cols-2 gap-3">
 
-              <div className="rounded-2xl bg-zinc-50 p-5 sm:col-span-2">
-                <p className="text-sm font-bold text-zinc-700">
-                  특이사항 / 메모
-                </p>
+              <div className="rounded-2xl bg-zinc-800 p-4">
+                <div className="text-sm text-zinc-400">
+                  FULL
+                </div>
 
-                <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-600">
-                  {profile.memo || "등록된 메모가 없습니다."}
-                </p>
+                <div className="mt-1 text-3xl font-black text-orange-500">
+                  {fullTotal}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-zinc-800 p-4">
+                <div className="text-sm text-zinc-400">
+                  EMPTY
+                </div>
+
+                <div className="mt-1 text-3xl font-black">
+                  {emptyTotal}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-zinc-800 p-4">
+                <div className="text-sm text-zinc-400">
+                  위험물
+                </div>
+
+                <div className="mt-1 text-3xl font-black">
+                  {dangerTotal}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-zinc-800 p-4">
+                <div className="text-sm text-zinc-400">
+                  일한 날
+                </div>
+
+                <div className="mt-1 text-3xl font-black">
+                  {workDays}
+                  <span className="ml-1 text-base text-zinc-400">
+                    일
+                  </span>
+                </div>
+              </div>
+
+            </div>
+          </section>
+
+          <section className="mt-4 grid grid-cols-2 gap-3">
+
+            <Link
+              href="/daily"
+              className="rounded-2xl border border-white/10 bg-zinc-900 p-5"
+            >
+              <div className="text-3xl">📊</div>
+
+              <div className="mt-3 text-lg font-black">
+                오늘 운행
+              </div>
+
+              <div className="mt-1 text-sm text-zinc-400">
+                오늘 기록하기
+              </div>
+            </Link>
+
+            <div className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
+              <div className="text-3xl">⚓</div>
+
+              <div className="mt-3 text-lg font-black">
+                내 정보 조회
+              </div>
+
+              <div className="mt-1 text-sm text-zinc-400">
+                GWCT · 허치슨
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => router.push("/driver/profile?mode=edit")}
-              className="mt-7 h-14 w-full rounded-xl bg-orange-600 text-sm font-bold text-white transition hover:bg-orange-500"
+            <div className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
+              <div className="text-3xl">🔧</div>
+
+              <div className="mt-3 text-lg font-black">
+                차량 관리
+              </div>
+
+              <div className="mt-1 text-sm text-zinc-400">
+                고장 · 수리 · 정비
+              </div>
+            </div>
+
+            <Link
+              href="/orders"
+              className="rounded-2xl border border-white/10 bg-zinc-900 p-5"
             >
-              운송차주 정보 수정
-            </button>
+              <div className="text-3xl">🚛</div>
+
+              <div className="mt-3 text-lg font-black">
+                알바 찾기
+              </div>
+
+              <div className="mt-1 text-sm text-zinc-400">
+                남는 시간 일거리
+              </div>
+            </Link>
+
           </section>
+
+          <section className="mt-4 rounded-2xl border border-white/10 bg-zinc-900 p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-black">
+                최근 운행
+              </h2>
+
+              <Link
+                href="/daily"
+                className="text-sm font-bold text-orange-500"
+              >
+                날짜별 보기
+              </Link>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {logs.length === 0 ? (
+                <p className="text-sm text-zinc-500">
+                  이번 달 운행 기록이 없습니다.
+                </p>
+              ) : (
+                logs.slice(0, 5).map((log) => (
+                  <div
+                    key={log.work_date}
+                    className="border-b border-white/5 pb-3 last:border-0 last:pb-0"
+                  >
+                    <div className="font-bold">
+                      {log.work_date}
+                    </div>
+
+                    <div className="mt-1 text-sm text-zinc-400">
+                      FULL{" "}
+                      {(log.full20 ?? 0) +
+                        (log.full40 ?? 0) +
+                        (log.danger20 ?? 0) +
+                        (log.danger40 ?? 0)}
+                      {" · "}
+                      EMPTY{" "}
+                      {(log.empty20 ?? 0) +
+                        (log.empty40 ?? 0)}
+                      {" · "}
+                      위험물{" "}
+                      {(log.danger20 ?? 0) +
+                        (log.danger40 ?? 0)}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
+          <button
+            type="button"
+            onClick={() =>
+              router.push("/driver/profile?mode=edit")
+            }
+            className="mt-4 h-14 w-full rounded-2xl border border-white/15 text-sm font-bold text-zinc-300"
+          >
+            내 차량정보 수정
+          </button>
+
         </div>
       </main>
 
       <Footer />
     </>
-  );
-}
-
-function InfoBox({
-  title,
-  items,
-}: {
-  title: string;
-  items: string[];
-}) {
-  return (
-    <div className="rounded-2xl bg-zinc-50 p-5">
-      <p className="text-sm font-bold text-zinc-700">{title}</p>
-
-      <p className="mt-2 text-sm leading-6 text-zinc-600">
-        {items?.length > 0 ? items.join(" · ") : "등록 정보 없음"}
-      </p>
-    </div>
   );
 }

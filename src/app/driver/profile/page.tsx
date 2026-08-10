@@ -1,618 +1,511 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { createClient } from "@/utils/supabase/client";
 
-const vehicleOptions = [
-  "트랙터",
-  "컨테이너 샤시",
-  "카고",
-  "윙바디",
-  "평판 트레일러",
-  "로우베드",
-  "저상 트레일러",
-  "모듈 트레일러",
-  "카고크레인",
-  "셀프로더",
+const truckBrands = [
+  "벤츠",
+  "스카니아",
+  "볼보",
+  "현대",
+  "타타대우",
+  "만",
   "기타",
 ];
-const cargoOptions = [
-    "컨테이너",
-    "굴착기",
-    "지게차",
-    "휠로더",
-    "불도저",
-    "크레인 부품",
-    "산업기계",
-    "공작기계",
-    "철구조물",
-    "플랜트 장비",
-    "발전기",
-    "변압기",
-    "탱크",
-    "보일러",
-    "중량물",
-    "장척화물",
-    "기타",
-  ];
-  const loadOptions = [
-    "5톤 이하",
-    "10톤 이하",
-    "15톤 이하",
-    "20톤 이하",
-    "25톤 이하",
-    "30톤 이하",
-    "40톤 이상",
-    "폭 초과 화물 가능",
-    "높이 초과 화물 가능",
-    "길이 초과 화물 가능",
-    "중량 초과 화물 가능",
-  ];
-  const regionOptions = [
-    "전국",
-    "수도권",
-    "강원",
-    "충북",
-    "충남",
-    "전북",
-    "전남",
-    "경북",
-    "경남",
-    "제주",
-  ];
-  const businessOptions = [
-    "화물보험 가입",
-    "적재물배상책임보험 가입",
-    "사업자등록 있음",
-    "전자세금계산서 발행 가능",
-    "현금영수증 가능",
-    "카드결제 가능",
-  ];
+
+const chassisTypes = [
+  "콤바인",
+  "콤비라인",
+  "라인",
+  "기타",
+];
+
+const routeOptions = [
+  "광양 구내",
+  "광양 - 여수",
+  "광양 - 전주",
+  "광양 - 부산",
+  "광양 - 광주",
+  "여수 - 광양",
+  "여수 - 부산",
+  "기타",
+];
+
+const modelOptions: Record<string, string[]> = {
+  벤츠: ["Actros 2646", "Actros 2651", "Actros 2653", "기타"],
+  스카니아: ["R450", "R500", "R540", "S500", "S540", "기타"],
+  볼보: ["FH 460", "FH 500", "FH 540", "기타"],
+  현대: ["엑시언트", "엑시언트 프로", "기타"],
+  타타대우: ["프리마", "맥쎈", "기타"],
+  만: ["TGX", "기타"],
+  기타: ["기타"],
+};
+
+const currentYear = new Date().getFullYear();
+
+const yearOptions = Array.from(
+  { length: 31 },
+  (_, index) => currentYear - index
+);
+
 export default function DriverProfilePage() {
-  const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
-  const [selectedCargo, setSelectedCargo] = useState<string[]>([]);
-  const [selectedLoad, setSelectedLoad] = useState<string[]>([]);
-  const [selectedRegion, setSelectedRegion] = useState<string[]>([]);
-  const [selectedBusiness, setSelectedBusiness] = useState<string[]>([]);
   const router = useRouter();
-  const [next, setNext] = useState<string | null>(null);
+  const supabase = createClient();
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isExisting, setIsExisting] = useState(false);
+
+  const [companies, setCompanies] = useState<string[]>([]);
+  const [companyName, setCompanyName] = useState("");
+  const [newCompanyName, setNewCompanyName] = useState("");
+  const [showNewCompany, setShowNewCompany] = useState(false);
+
+  const [vehicleNumber, setVehicleNumber] = useState("");
+  const [truckBrand, setTruckBrand] = useState("");
+  const [truckYear, setTruckYear] = useState("");
+  const [truckModel, setTruckModel] = useState("");
+  const [chassisType, setChassisType] = useState("");
+  const [mainRoute, setMainRoute] = useState("");
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setNext(params.get("next"));
+    async function loadPage() {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        router.push("/login");
+        return;
+      }
+
+      const { data: companyData, error: companyError } = await supabase
+        .from("companies")
+        .select("name")
+        .order("name", { ascending: true });
+
+      if (!companyError && companyData) {
+        setCompanies(companyData.map((item) => item.name));
+      }
+
+      const { data: driverData, error: driverError } = await supabase
+        .from("drivers")
+        .select(
+          "company_name, vehicle_number, truck_brand, truck_year, truck_model, chassis_type, main_route"
+        )
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (driverError) {
+        console.error("운송차주 정보 조회 오류:", driverError);
+      }
+
+      if (driverData) {
+        setIsExisting(true);
+        setCompanyName(driverData.company_name ?? "");
+        setVehicleNumber(driverData.vehicle_number ?? "");
+        setTruckBrand(driverData.truck_brand ?? "");
+        setTruckYear(
+          driverData.truck_year ? String(driverData.truck_year) : ""
+        );
+        setTruckModel(driverData.truck_model ?? "");
+        setChassisType(driverData.chassis_type ?? "");
+        setMainRoute(driverData.main_route ?? "");
+      }
+
+      setLoading(false);
+    }
+
+    loadPage();
   }, []);
-  const supabase = createClient();
-  const [vehicleNumber, setVehicleNumber] = useState("");
-const [businessNumber, setBusinessNumber] = useState("");
-const [memo, setMemo] = useState("");
-const [isExisting, setIsExisting] = useState(false);
-useEffect(() => {
-  async function loadDriverProfile() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
-    if (!user) return;
+  async function addCompany() {
+    const name = newCompanyName.trim();
 
-    const { data, error } = await supabase
-      .from("drivers")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (error) {
-      console.error("운송차주 정보 조회 오류:", error);
+    if (!name) {
+      alert("운송사 이름을 입력해주세요.");
       return;
     }
 
-    if (!data) return;
+    const { error } = await supabase
+      .from("companies")
+      .insert({ name });
 
-    setIsExisting(true);
-    setSelectedVehicles(data.vehicle_types ?? []);
-    setSelectedCargo(data.cargo_types ?? []);
-    setSelectedLoad(data.load_conditions ?? []);
-    setSelectedRegion(data.regions ?? []);
-    setSelectedBusiness(data.business_info ?? []);
-    setVehicleNumber(data.vehicle_number ?? "");
-    setBusinessNumber(data.business_number ?? "");
-    setMemo(data.memo ?? "");
-  }
+    if (error) {
+      if (error.code === "23505") {
+        alert("이미 등록된 운송사입니다.");
+        return;
+      }
 
-  loadDriverProfile();
-}, []);
-  function toggleVehicle(vehicle: string) {
-    setSelectedVehicles((current) =>
-      current.includes(vehicle)
-        ? current.filter((item) => item !== vehicle)
-        : [...current, vehicle]
-    );
-  }
-function toggleCargo(cargo: string) {
-  setSelectedCargo((current) =>
-    current.includes(cargo)
-      ? current.filter((item) => item !== cargo)
-      : [...current, cargo]
-  );
-}
-
-function toggleLoad(load: string) {
-  setSelectedLoad((current) => {
-    const isTonOption = load.endsWith("톤 이하");
-
-    if (isTonOption) {
-      const withoutTonOptions = current.filter(
-        (item) => !item.endsWith("톤 이하")
-      );
-
-      return current.includes(load)
-        ? withoutTonOptions
-        : [...withoutTonOptions, load];
+      alert(`운송사 등록 오류: ${error.message}`);
+      return;
     }
 
-    return current.includes(load)
-      ? current.filter((item) => item !== load)
-      : [...current, load];
-  });
-}
-
-  function toggleRegion(region: string) {
-    setSelectedRegion((current) => {
-      if (region === "전국") {
-        return current.includes("전국") ? [] : ["전국"];
-      }
-  
-      const withoutAll = current.filter((item) => item !== "전국");
-  
-      return withoutAll.includes(region)
-        ? withoutAll.filter((item) => item !== region)
-        : [...withoutAll, region];
-    });
-  }
-
-  function toggleBusiness(item: string) {
-    setSelectedBusiness((current) =>
-      current.includes(item)
-        ? current.filter((value) => value !== item)
-        : [...current, item]
+    setCompanies((current) =>
+      [...current, name].sort((a, b) => a.localeCompare(b, "ko"))
     );
+
+    setCompanyName(name);
+    setNewCompanyName("");
+    setShowNewCompany(false);
+
+    alert("운송사가 등록되었습니다.");
   }
 
-  async function handleSaveDriver() {
+  async function saveProfile() {
+    if (!companyName) {
+      alert("소속 운송사를 선택해주세요.");
+      return;
+    }
+
+    if (!vehicleNumber.trim()) {
+      alert("차량번호를 입력해주세요.");
+      return;
+    }
+
+    if (!truckBrand) {
+      alert("차량 제조사를 선택해주세요.");
+      return;
+    }
+
+    if (!truckYear) {
+      alert("차량 연식을 선택해주세요.");
+      return;
+    }
+
+    if (!truckModel) {
+      alert("차량 모델을 선택해주세요.");
+      return;
+    }
+
+    if (!chassisType) {
+      alert("샤시 종류를 선택해주세요.");
+      return;
+    }
+
+    if (!mainRoute) {
+      alert("주요 노선을 선택해주세요.");
+      return;
+    }
+
+    setSaving(true);
+
     const {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser();
-  
+
     if (userError || !user) {
+      setSaving(false);
       alert("로그인이 필요합니다.");
       router.push("/login");
       return;
     }
-  
-    const { error } = await supabase.from("drivers").upsert({
-      user_id: user.id,
-      vehicle_types: selectedVehicles,
-      cargo_types: selectedCargo,
-      load_conditions: selectedLoad,
-      regions: selectedRegion,
-      business_info: selectedBusiness,
-      vehicle_number: vehicleNumber,
-      business_number: businessNumber,
-      phone: user.user_metadata?.phone || null,
-      memo,
-    }, { onConflict: "user_id" });
-  
+
+    const { error } = await supabase
+      .from("drivers")
+      .upsert(
+        {
+          user_id: user.id,
+          company_name: companyName,
+          vehicle_number: vehicleNumber.trim(),
+          truck_brand: truckBrand,
+          truck_year: Number(truckYear),
+          truck_model: truckModel,
+          chassis_type: chassisType,
+          main_route: mainRoute,
+          phone: user.user_metadata?.phone || null,
+        },
+        {
+          onConflict: "user_id",
+        }
+      );
+
+    setSaving(false);
+
     if (error) {
       alert(`저장 오류: ${error.message}`);
       return;
     }
-  
-    alert("운송차주 정보가 저장되었습니다.");
-    router.push(next || "/");
+
+    alert(
+      isExisting
+        ? "운송차주 정보가 수정되었습니다."
+        : "운송차주 정보가 등록되었습니다."
+    );
+
+    router.push("/driver/my");
   }
+
+  if (loading) {
+    return (
+      <>
+        <Header />
+
+        <main className="flex min-h-screen items-center justify-center bg-[#080808] text-white">
+          <p className="text-zinc-400">불러오는 중...</p>
+        </main>
+
+        <Footer />
+      </>
+    );
+  }
+
+  const availableModels = truckBrand
+    ? modelOptions[truckBrand] ?? ["기타"]
+    : [];
 
   return (
     <>
       <Header />
 
-      <main className="min-h-screen bg-[#080808] px-4 pb-20 pt-28 text-white sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-5xl">
-          <div className="mb-8">
-            <p className="text-sm font-bold text-orange-500">
-              운송차주 세부정보
+      <main className="min-h-screen bg-[#080808] px-4 pb-20 pt-28 text-white sm:px-6">
+        <div className="mx-auto max-w-3xl">
+
+          <div className="mb-7">
+            <p className="text-xs font-bold text-orange-500">
+              STTP LINK
             </p>
 
-            <h1 className="mt-2 text-3xl font-black sm:text-4xl">
-              운송 가능한 차량을 선택하세요
+            <h1 className="mt-2 text-3xl font-black">
+              운송차주 정보
             </h1>
 
-            <p className="mt-3 text-sm leading-6 text-zinc-400">
-              보유하거나 운행 가능한 차량을 모두 선택할 수 있습니다.
+            <p className="mt-2 text-sm text-zinc-400">
+              운행에 필요한 기본 정보만 등록합니다.
             </p>
           </div>
 
-          <section className="rounded-3xl border border-white/10 bg-white p-5 text-zinc-900 shadow-2xl sm:p-7">
-            <div className="mb-5">
-              <p className="text-xs font-bold text-orange-600">
-                STEP 1
-              </p>
+          <section className="space-y-6 rounded-3xl bg-white p-5 text-zinc-900 shadow-2xl sm:p-7">
 
-              <h2 className="mt-1 text-2xl font-bold">
-                차량 종류
-              </h2>
+            {/* 소속 운송사 */}
+            <Field title="소속 운송사">
+              <select
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                className="input-style"
+              >
+                <option value="">운송사를 선택하세요</option>
 
-              <p className="mt-2 text-sm text-zinc-500">
-                중복 선택 가능합니다.
-              </p>
-            </div>
+                {companies.map((company) => (
+                  <option key={company} value={company}>
+                    {company}
+                  </option>
+                ))}
+              </select>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {vehicleOptions.map((vehicle) => {
-                const selected = selectedVehicles.includes(vehicle);
+              <button
+                type="button"
+                onClick={() => setShowNewCompany(!showNewCompany)}
+                className="mt-3 text-sm font-bold text-orange-600"
+              >
+                + 새 운송사 등록
+              </button>
 
-                return (
+              {showNewCompany && (
+                <div className="mt-3 flex gap-2">
+                  <input
+                    value={newCompanyName}
+                    onChange={(e) => setNewCompanyName(e.target.value)}
+                    placeholder="운송사 이름"
+                    className="input-style"
+                  />
+
                   <button
-                    key={vehicle}
                     type="button"
-                    onClick={() => toggleVehicle(vehicle)}
-                    className={`flex min-h-[72px] items-center gap-3 rounded-2xl border px-4 text-left transition ${
-                      selected
-                        ? "border-orange-600 bg-orange-50 ring-2 ring-orange-100"
-                        : "border-zinc-200 bg-white hover:border-orange-300 hover:bg-orange-50/40"
-                    }`}
+                    onClick={addCompany}
+                    className="shrink-0 rounded-xl bg-zinc-900 px-5 font-bold text-white"
                   >
-                    <span
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-sm font-bold ${
-                        selected
-                          ? "border-orange-600 bg-orange-600 text-white"
-                          : "border-zinc-300 bg-white text-transparent"
-                      }`}
-                    >
-                      ✓
-                    </span>
-
-                    <span
-                      className={`font-semibold ${
-                        selected ? "text-orange-700" : "text-zinc-800"
-                      }`}
-                    >
-                      {vehicle}
-                    </span>
+                    등록
                   </button>
-                );
-              })}
-            </div>
-            <div className="mt-10 border-t border-zinc-200 pt-8">
-  <div className="mb-5">
-    <p className="text-xs font-bold text-orange-600">
-      STEP 2
-    </p>
+                </div>
+              )}
+            </Field>
 
-    <h2 className="mt-1 text-2xl font-bold">
-      적재 가능 화물
-    </h2>
+            {/* 차량번호 */}
+            <Field title="차량번호">
+              <input
+                type="text"
+                value={vehicleNumber}
+                onChange={(e) => setVehicleNumber(e.target.value)}
+                placeholder="예: 전남99바1234"
+                className="input-style"
+              />
+            </Field>
 
-    <p className="mt-2 text-sm text-zinc-500">
-      운송 가능한 화물을 모두 선택하세요.
-    </p>
-  </div>
+            {/* 제조사 */}
+            <Field title="차량 제조사">
+              <select
+                value={truckBrand}
+                onChange={(e) => {
+                  setTruckBrand(e.target.value);
+                  setTruckModel("");
+                }}
+                className="input-style"
+              >
+                <option value="">제조사를 선택하세요</option>
 
-  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-    {cargoOptions.map((cargo) => {
-      const selected = selectedCargo.includes(cargo);
+                {truckBrands.map((brand) => (
+                  <option key={brand} value={brand}>
+                    {brand}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
-      return (
-        <button
-          key={cargo}
-          type="button"
-          onClick={() => toggleCargo(cargo)}
-          className={`flex min-h-[68px] items-center gap-3 rounded-2xl border px-4 text-left transition ${
-            selected
-              ? "border-orange-600 bg-orange-50 ring-2 ring-orange-100"
-              : "border-zinc-200 bg-white hover:border-orange-300 hover:bg-orange-50/40"
-          }`}
-        >
-          <span
-            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-sm font-bold ${
-              selected
-                ? "border-orange-600 bg-orange-600 text-white"
-                : "border-zinc-300 bg-white text-transparent"
-            }`}
-          >
-            ✓
-          </span>
+            {/* 연식 */}
+            <Field title="연식">
+              <select
+                value={truckYear}
+                onChange={(e) => setTruckYear(e.target.value)}
+                className="input-style"
+              >
+                <option value="">연식을 선택하세요</option>
 
-          <span
-            className={`font-semibold ${
-              selected ? "text-orange-700" : "text-zinc-800"
-            }`}
-          >
-            {cargo}
-          </span>
-        </button>
-      );
-    })}
-  </div>
-</div>
-<div className="mt-10 border-t border-zinc-200 pt-8">
-  <div className="mb-5">
-    <p className="text-xs font-bold text-orange-600">
-      STEP 3
-    </p>
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}년
+                  </option>
+                ))}
+              </select>
+            </Field>
 
-    <h2 className="mt-1 text-2xl font-bold">
-      적재 조건
-    </h2>
+            {/* 모델 */}
+            <Field title="차량 모델">
+              <select
+                value={truckModel}
+                onChange={(e) => setTruckModel(e.target.value)}
+                disabled={!truckBrand}
+                className="input-style disabled:bg-zinc-100"
+              >
+                <option value="">
+                  {truckBrand
+                    ? "모델을 선택하세요"
+                    : "제조사를 먼저 선택하세요"}
+                </option>
 
-    <p className="mt-2 text-sm text-zinc-500">
-      가능한 적재 중량과 특수 화물 조건을 모두 선택하세요.
-    </p>
-  </div>
+                {availableModels.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
-  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-    {loadOptions.map((load) => {
-      const selected = selectedLoad.includes(load);
+            {/* 샤시 */}
+            <Field title="트레일러 샤시">
+              <div className="grid grid-cols-2 gap-2">
+                {chassisTypes.map((item) => (
+                  <SelectButton
+                    key={item}
+                    selected={chassisType === item}
+                    onClick={() => setChassisType(item)}
+                  >
+                    {item}
+                  </SelectButton>
+                ))}
+              </div>
+            </Field>
 
-      return (
-        <button
-          key={load}
-          type="button"
-          onClick={() => toggleLoad(load)}
-          className={`flex min-h-[68px] items-center gap-3 rounded-2xl border px-4 text-left transition ${
-            selected
-              ? "border-orange-600 bg-orange-50 ring-2 ring-orange-100"
-              : "border-zinc-200 bg-white hover:border-orange-300 hover:bg-orange-50/40"
-          }`}
-        >
-          <span
-            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-sm font-bold ${
-              selected
-                ? "border-orange-600 bg-orange-600 text-white"
-                : "border-zinc-300 bg-white text-transparent"
-            }`}
-          >
-            ✓
-          </span>
+            {/* 주요노선 */}
+            <Field title="주요 정기노선">
+              <select
+                value={mainRoute}
+                onChange={(e) => setMainRoute(e.target.value)}
+                className="input-style"
+              >
+                <option value="">주요 노선을 선택하세요</option>
 
-          <span
-            className={`font-semibold ${
-              selected ? "text-orange-700" : "text-zinc-800"
-            }`}
-          >
-            {load}
-          </span>
-        </button>
-      );
-    })}
-  </div>
-</div>
-<div className="mt-10 border-t border-zinc-200 pt-8">
-  <div className="mb-5">
-    <p className="text-xs font-bold text-orange-600">
-      STEP 4
-    </p>
+                {routeOptions.map((route) => (
+                  <option key={route} value={route}>
+                    {route}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
-    <h2 className="mt-1 text-2xl font-bold">
-      운송 가능 지역
-    </h2>
-
-    <p className="mt-2 text-sm text-zinc-500">
-      운송 가능한 지역을 모두 선택하세요.
-    </p>
-  </div>
-
-  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-    {regionOptions.map((region) => {
-      const selected = selectedRegion.includes(region);
-
-      return (
-        <button
-          key={region}
-          type="button"
-          onClick={() => toggleRegion(region)}
-          className={`flex min-h-[68px] items-center gap-3 rounded-2xl border px-4 text-left transition ${
-            selected
-              ? "border-orange-600 bg-orange-50 ring-2 ring-orange-100"
-              : "border-zinc-200 bg-white hover:border-orange-300 hover:bg-orange-50/40"
-          }`}
-        >
-          <span
-            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-sm font-bold ${
-              selected
-                ? "border-orange-600 bg-orange-600 text-white"
-                : "border-zinc-300 bg-white text-transparent"
-            }`}
-          >
-            ✓
-          </span>
-
-          <span
-            className={`font-semibold ${
-              selected ? "text-orange-700" : "text-zinc-800"
-            }`}
-          >
-            {region}
-          </span>
-        </button>
-      );
-    })}
-  </div>
-</div>
-<div className="mt-10 border-t border-zinc-200 pt-8">
-  <div className="mb-5">
-    <p className="text-xs font-bold text-orange-600">
-      STEP 5
-    </p>
-
-    <h2 className="mt-1 text-2xl font-bold">
-      보험 및 사업자 정보
-    </h2>
-
-    <p className="mt-2 text-sm text-zinc-500">
-      해당되는 항목을 모두 선택하세요.
-    </p>
-  </div>
-
-  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-    {businessOptions.map((item) => {
-      const selected = selectedBusiness.includes(item);
-
-      return (
-        <button
-          key={item}
-          type="button"
-          onClick={() => toggleBusiness(item)}
-          className={`flex min-h-[68px] items-center gap-3 rounded-2xl border px-4 text-left transition ${
-            selected
-              ? "border-orange-600 bg-orange-50 ring-2 ring-orange-100"
-              : "border-zinc-200 bg-white hover:border-orange-300 hover:bg-orange-50/40"
-          }`}
-        >
-          <span
-            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-sm font-bold ${
-              selected
-                ? "border-orange-600 bg-orange-600 text-white"
-                : "border-zinc-300 bg-white text-transparent"
-            }`}
-          >
-            ✓
-          </span>
-
-          <span
-            className={`font-semibold ${
-              selected ? "text-orange-700" : "text-zinc-800"
-            }`}
-          >
-            {item}
-          </span>
-        </button>
-      );
-    })}
-  </div>
-</div>
-<div className="mt-10 border-t border-zinc-200 pt-8">
-  <div className="mb-5">
-    <p className="text-xs font-bold text-orange-600">
-      STEP 6
-    </p>
-
-    <h2 className="mt-1 text-2xl font-bold">
-      운송차주 기본 정보
-    </h2>
-
-    <p className="mt-2 text-sm text-zinc-500">
-      배차 및 운송 연락에 필요한 정보를 입력하세요.
-    </p>
-  </div>
-
-  <div className="grid gap-4 sm:grid-cols-2">
-    <label className="block">
-      <span className="mb-2 block text-sm font-bold text-zinc-700">
-        차량번호
-      </span>
-      <input
-        type="text"
-        value={vehicleNumber}
-onChange={(event) => setVehicleNumber(event.target.value)}
-        placeholder="예: 서울12아3456"
-        className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-      />
-    </label>
-
-    <label className="block">
-      <span className="mb-2 block text-sm font-bold text-zinc-700">
-        사업자번호
-      </span>
-      <input
-        type="text"
-        value={businessNumber}
-onChange={(event) => setBusinessNumber(event.target.value)}
-        placeholder="예: 123-45-67890"
-        className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-      />
-    </label>
-
-    <label className="block sm:col-span-2">
-      <span className="mb-2 block text-sm font-bold text-zinc-700">
-        특이사항 / 메모
-      </span>
-      <textarea
-        rows={4}
-        value={memo}
-onChange={(event) => setMemo(event.target.value)}
-        placeholder="차량 특성, 운송 가능 조건 등 추가 정보를 입력하세요."
-        className="w-full rounded-xl border border-zinc-200 bg-white p-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-      />
-    </label>
-  </div>
-</div>
-<div className="mt-7 rounded-2xl bg-zinc-50 p-5">
-  <p className="text-xs font-bold text-orange-600">
-    등록 정보 확인
-  </p>
-
-  <div className="mt-4 space-y-4 text-sm">
-    <div>
-      <p className="font-bold text-zinc-700">차량 종류</p>
-      <p className="mt-1 text-zinc-600">
-        {selectedVehicles.length > 0
-          ? selectedVehicles.join(" · ")
-          : "선택 없음"}
-      </p>
-    </div>
-
-    <div>
-      <p className="font-bold text-zinc-700">적재 가능 화물</p>
-      <p className="mt-1 text-zinc-600">
-        {selectedCargo.length > 0
-          ? selectedCargo.join(" · ")
-          : "선택 없음"}
-      </p>
-    </div>
-
-    <div>
-      <p className="font-bold text-zinc-700">적재 조건</p>
-      <p className="mt-1 text-zinc-600">
-        {selectedLoad.length > 0
-          ? selectedLoad.join(" · ")
-          : "선택 없음"}
-      </p>
-    </div>
-
-    <div>
-      <p className="font-bold text-zinc-700">운송 가능 지역</p>
-      <p className="mt-1 text-zinc-600">
-        {selectedRegion.length > 0
-          ? selectedRegion.join(" · ")
-          : "선택 없음"}
-      </p>
-    </div>
-
-    <div>
-      <p className="font-bold text-zinc-700">보험 / 사업자 정보</p>
-      <p className="mt-1 text-zinc-600">
-        {selectedBusiness.length > 0
-          ? selectedBusiness.join(" · ")
-          : "선택 없음"}
-      </p>
-    </div>
-  </div>
-</div>
-<button
-  type="button"
-  onClick={handleSaveDriver}
-  className="mt-7 h-14 w-full rounded-xl bg-orange-600 text-sm font-bold text-white transition hover:bg-orange-500"
->
-{isExisting ? "정보 수정" : "운송차주 등록"}
+            <button
+              type="button"
+              onClick={saveProfile}
+              disabled={saving}
+              className="h-16 w-full rounded-2xl bg-orange-600 text-lg font-black text-white transition hover:bg-orange-500 disabled:opacity-50"
+            >
+              {saving
+                ? "저장 중..."
+                : isExisting
+                ? "정보 수정"
+                : "등록 완료"}
             </button>
+
           </section>
         </div>
       </main>
 
       <Footer />
+
+      <style jsx>{`
+        .input-style {
+          width: 100%;
+          height: 56px;
+          border: 1px solid #e4e4e7;
+          border-radius: 12px;
+          background: white;
+          padding: 0 16px;
+          outline: none;
+          font-size: 15px;
+        }
+
+        .input-style:focus {
+          border-color: #ea580c;
+          box-shadow: 0 0 0 2px #ffedd5;
+        }
+      `}</style>
     </>
+  );
+}
+
+function Field({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-sm font-bold text-zinc-700">
+        {title}
+      </p>
+
+      {children}
+    </div>
+  );
+}
+
+function SelectButton({
+  selected,
+  onClick,
+  children,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`h-14 rounded-xl border font-bold transition ${
+        selected
+          ? "border-orange-600 bg-orange-600 text-white"
+          : "border-zinc-200 bg-zinc-50 text-zinc-700"
+      }`}
+    >
+      {children}
+    </button>
   );
 }

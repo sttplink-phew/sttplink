@@ -1,104 +1,62 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { createClient } from "@/utils/supabase/client";
 
-type CargoType = "container" | "equipment" | "heavy" | "";
-function ContainerIcon() {
-  return (
-    <svg viewBox="0 0 48 48" className="h-8 w-8 text-orange-600" fill="none">
-      <rect
-        x="6"
-        y="12"
-        width="36"
-        height="24"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="3"
-      />
-      <path
-        d="M13 14v20M20 14v20M28 14v20M35 14v20"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-    </svg>
-  );
-}
+type CargoType =
+  | "20full"
+  | "40full"
+  | "20danger"
+  | "40danger"
+  | "20empty"
+  | "40empty"
+  | "other"
+  | "";
 
-function EquipmentIcon() {
-  return (
-    <svg
-      viewBox="0 0 48 48"
-      className="h-8 w-8 text-orange-600"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="3"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="9" y="30" width="25" height="7" rx="2" />
-      <path d="M16 30V20H27L32 30" />
-      <path d="M27 20L34 12L41 15" />
-      <path d="M41 15L38 25" />
-      <path d="M38 25L44 28L39 32" />
-      <circle cx="15" cy="38" r="3" />
-      <circle cx="29" cy="38" r="3" />
-    </svg>
-  );
-}
-
-function HeavyIcon() {
-  return (
-    <svg viewBox="0 0 48 48" className="h-7 w-7" fill="none">
-      <path
-        d="M24 6v11"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <path
-        d="M24 17c0 6 8 4 8 10 0 4-3 7-8 7"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <rect
-        x="11"
-        y="34"
-        width="26"
-        height="8"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="3"
-      />
-    </svg>
-  );
-}
 const cargoItems = [
   {
-    id: "container",
-    title: "컨테이너",
-    description: "수출입 컨테이너 운송",
-    icon: "▣",
+    id: "20full",
+    title: "20 FULL",
+    description: "20피트 풀 컨테이너",
   },
   {
-    id: "equipment",
-    title: "건설장비",
-    description: "굴착기·지게차·장비 운송",
-    icon: "▤",
+    id: "40full",
+    title: "40 FULL",
+    description: "40피트 풀 컨테이너",
   },
   {
-    id: "heavy",
-    title: "중량물",
-    description: "대형·중량 화물 운송",
-    icon: "◆",
+    id: "20danger",
+    title: "20 위험물",
+    description: "20피트 위험물 FULL",
+  },
+  {
+    id: "40danger",
+    title: "40 위험물",
+    description: "40피트 위험물 FULL",
+  },
+  {
+    id: "20empty",
+    title: "20 EMPTY",
+    description: "20피트 엠티",
+  },
+  {
+    id: "40empty",
+    title: "40 EMPTY",
+    description: "40피트 엠티",
+  },
+  {
+    id: "other",
+    title: "기타",
+    description: "특수 · 탱크 · 기타",
   },
 ] as const;
 
 function getLocalDateValue() {
   const date = new Date();
+
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
@@ -139,7 +97,7 @@ function DatePickerField({
     if ("showPicker" in input) {
       input.showPicker();
     } else {
-      (input as HTMLInputElement).click();
+      input.click();
     }
   }
 
@@ -148,48 +106,63 @@ function DatePickerField({
       <span className="mb-2 block text-xs font-bold text-zinc-500">
         {label}
       </span>
-      <div className="relative">
-      <input
-        ref={inputRef}
-        type="date"
-        min={min}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-14 w-full min-w-0 max-w-full box-border rounded-xl border border-zinc-200 bg-white px-4 font-bold text-zinc-900 ..."
-      />
-      <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xl">
-  📅
-</span>
-</div>
+
+      <div
+        className="relative cursor-pointer"
+        onClick={openCalendar}
+      >
+        <input
+          ref={inputRef}
+          type="date"
+          min={min}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-14 w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-4 pr-12 font-bold text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+        />
+
+        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xl">
+          📅
+        </span>
+      </div>
     </div>
   );
 }
 
 export default function HomePage() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
+
   const [cargoType, setCargoType] = useState<CargoType>("");
 
   const [pickupDate, setPickupDate] = useState("");
   const [pickupTime, setPickupTime] = useState("");
-  const [pickupTimeFlexible, setPickupTimeFlexible] = useState(false);
-
+  const [pickupTimeFlexible, setPickupTimeFlexible] =
+    useState(false);
 
   const [deliveryDate, setDeliveryDate] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
-  const [deliveryTimeFlexible, setDeliveryTimeFlexible] = useState(false);
-  const [freightPrice, setFreightPrice] = useState("");
+  const [deliveryTimeFlexible, setDeliveryTimeFlexible] =
+    useState(false);
+
+  const [weightTons, setWeightTons] = useState("");
+  const [hazardous, setHazardous] = useState(false);
+
+  const [pickupLocation, setPickupLocation] = useState("");
+  const [deliveryLocation, setDeliveryLocation] = useState("");
+  const [specialNotes, setSpecialNotes] = useState("");
+
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [paymentTiming, setPaymentTiming] = useState("");
+
   const [customerName, setCustomerName] = useState("");
-const [customerPhone, setCustomerPhone] = useState("");
-const [pickupLocation, setPickupLocation] = useState("");
-const [deliveryLocation, setDeliveryLocation] = useState("");
-const [specialNotes, setSpecialNotes] = useState("");
-const [weightTons, setWeightTons] = useState("");
-const [hazardous, setHazardous] = useState(false);
-const [selfLoadingRequired, setSelfLoadingRequired] = useState(false);
-const [paymentMethod, setPaymentMethod] = useState("");
-const [paymentTiming, setPaymentTiming] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+
+  const [freightPrice, setFreightPrice] = useState("");
+
+  const [saving, setSaving] = useState(false);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+
   const selectedCargo = useMemo(
     () => cargoItems.find((item) => item.id === cargoType),
     [cargoType]
@@ -214,556 +187,889 @@ const [paymentTiming, setPaymentTiming] = useState("");
     }
   }
 
-  function resetOrder() {
-    setCargoType("");
-    setPickupDate("");
-    setPickupTime("");
-    setDeliveryDate("");
-    setDeliveryTime("");
-    setStep(1);
-  }
-async function submitOrder() {
-  if (!customerName || !customerPhone) {
-    alert("이름/업체명과 연락처를 입력해주세요.");
-    return;
-  }
-  const { data: newOrder, error } = await supabase
-  .from("orders")
-  .insert({
-    cargo_type: cargoType,
-    pickup_date: pickupDate,
-    pickup_time: pickupTime || null,
-    pickup_time_flexible: pickupTimeFlexible,
-    delivery_date: deliveryDate,
-    delivery_time: deliveryTime || null,
-    delivery_time_flexible: deliveryTimeFlexible,
-    freight_price: freightPrice,
-    pickup_location: pickupLocation,
-    delivery_location: deliveryLocation,
-    special_notes: specialNotes || null,
-    weight_tons: weightTons ? Number(weightTons) : null,
-hazardous: hazardous,
-self_loading_required: cargoType === "equipment" ? selfLoadingRequired : false,
-    payment_method: paymentMethod || null,
-    payment_timing: paymentTiming || null,
-    customer_name: customerName,
-customer_phone: customerPhone,
-edit_code: crypto.randomUUID().slice(0, 8).toUpperCase(),
-status: "open",
-driver_id: null,
-})
-.select("id")
-.single();
+  function selectCargo(type: CargoType) {
+    setCargoType(type);
 
-  if (error) {
-    alert("오더 등록 중 오류가 발생했습니다.\n" + error.message);
-    return;
-  }
-
-  alert("새 오더 ID: " + newOrder?.id);
-  
-  if (newOrder?.id) {
-    try {
-      await fetch("/api/notifications/queue", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          orderId: newOrder.id,
-        }),
-      });
-    } catch (queueError) {
-      console.error("알림 대기열 생성 오류:", queueError);
+    if (type === "20danger" || type === "40danger") {
+      setHazardous(true);
+    } else {
+      setHazardous(false);
     }
   }
 
-  setStep(3);
-}
+  function resetOrder() {
+    setCargoType("");
+
+    setPickupDate("");
+    setPickupTime("");
+    setPickupTimeFlexible(false);
+
+    setDeliveryDate("");
+    setDeliveryTime("");
+    setDeliveryTimeFlexible(false);
+
+    setWeightTons("");
+    setHazardous(false);
+
+    setPickupLocation("");
+    setDeliveryLocation("");
+    setSpecialNotes("");
+
+    setPaymentMethod("");
+    setPaymentTiming("");
+
+    setCustomerName("");
+    setCustomerPhone("");
+
+    setFreightPrice("");
+
+    setStep(1);
+  }
+
+  async function submitOrder() {
+    if (!customerName.trim() || !customerPhone.trim()) {
+      alert("이름/업체명과 연락처를 입력해주세요.");
+      return;
+    }
+
+    if (!pickupLocation.trim()) {
+      alert("상차 장소를 입력해주세요.");
+      return;
+    }
+
+    if (!deliveryLocation.trim()) {
+      alert("하차 장소를 입력해주세요.");
+      return;
+    }
+
+    setSaving(true);
+
+    const { data: newOrder, error } = await supabase
+      .from("orders")
+      .insert({
+        cargo_type: cargoType,
+
+        pickup_date: pickupDate,
+        pickup_time: pickupTime || null,
+        pickup_time_flexible: pickupTimeFlexible,
+
+        delivery_date: deliveryDate,
+        delivery_time: deliveryTime || null,
+        delivery_time_flexible: deliveryTimeFlexible,
+
+        freight_price: freightPrice || null,
+
+        pickup_location: pickupLocation.trim(),
+        delivery_location: deliveryLocation.trim(),
+
+        special_notes: specialNotes.trim() || null,
+
+        weight_tons: weightTons
+          ? Number(weightTons)
+          : null,
+
+        hazardous:
+          cargoType === "20danger" ||
+          cargoType === "40danger" ||
+          hazardous,
+
+        self_loading_required: false,
+
+        payment_method: paymentMethod || null,
+        payment_timing: paymentTiming || null,
+
+        customer_name: customerName.trim(),
+        customer_phone: customerPhone.trim(),
+
+        edit_code: crypto.randomUUID()
+          .slice(0, 8)
+          .toUpperCase(),
+
+        status: "open",
+        driver_id: null,
+      })
+      .select("id")
+      .single();
+
+    setSaving(false);
+
+    if (error) {
+      alert(
+        "알바 등록 중 오류가 발생했습니다.\n" +
+          error.message
+      );
+      return;
+    }
+
+    if (!newOrder) {
+      alert("알바 등록에 실패했습니다.");
+      return;
+    }
+
+    setStep(3);
+  }
 
   return (
     <>
       <Header />
 
       <main
-  className="min-h-screen bg-cover bg-center bg-no-repeat text-white"
-  style={{ backgroundImage: "url('/hero-truck.png')" }}
->
+        className="min-h-screen bg-cover bg-center bg-no-repeat text-white"
+        style={{
+          backgroundImage: "url('/hero-truck.png')",
+        }}
+      >
         <section className="relative overflow-hidden px-4 pb-24 pt-28 sm:px-6 lg:px-8">
+          <div className="absolute inset-0 bg-black/70" />
+
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(234,88,12,0.20),transparent_38%)]" />
 
           <div className="relative mx-auto max-w-7xl">
+
+            {/* 메인 소개 */}
+
             <div className="max-w-4xl">
               <p className="mb-4 text-sm font-bold text-orange-500">
-                AI 기반 대형 화물 운송 플랫폼
+                광양항 컨테이너 운송차주 커뮤니티
               </p>
 
               <h1 className="text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-  일회성 중량물 운송,
-  <br />
-  <span className="text-orange-500">
-    빠르고 정확하게 연결합니다
-  </span>
-</h1>
+                광양항 컨테이너 운송차주의
+                <br />
 
-<p className="mt-6 max-w-2xl text-base leading-7 text-zinc-400 sm:text-lg">
-  필요한 일정과 운송 조건을 등록하면
-  <br />
-  조건에 맞는 운송차주와 빠르게 연결합니다.
-  
-</p>
+                <span className="text-orange-500">
+                  하루를 연결합니다
+                </span>
+              </h1>
+
+              <p className="mt-6 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">
+                회전수 기록부터 터미널 정보, 차량 정비 정보,
+                <br />
+                남는 시간의 일거리까지 한곳에서 확인하세요.
+              </p>
             </div>
 
+            {/* 주요 서비스 */}
+
+            <section className="mt-10 rounded-3xl border border-white/10 bg-black/55 p-5 shadow-2xl backdrop-blur-md sm:p-7">
+              <p className="text-xs font-bold text-orange-500">
+                STTP LINK
+              </p>
+
+              <h2 className="mt-2 text-2xl font-bold">
+                오늘 필요한 서비스를 선택하세요
+              </h2>
+
+              <div className="mt-6 grid grid-cols-2 gap-3">
+
+                <Link
+                  href="/daily"
+                  className="rounded-2xl border border-white/10 bg-zinc-900 p-5 text-left transition hover:border-orange-500"
+                >
+                  <div className="text-3xl">📊</div>
+
+                  <div className="mt-3 text-lg font-bold">
+                    오늘 운행
+                  </div>
+
+                  <div className="mt-1 text-sm text-zinc-400">
+                    오늘 회전수 기록
+                  </div>
+                </Link>
+
+                <button
+                  type="button"
+                  className="rounded-2xl border border-white/10 bg-zinc-900 p-5 text-left transition hover:border-orange-500"
+                >
+                  <div className="text-3xl">⚓</div>
+
+                  <div className="mt-3 text-lg font-bold">
+                    내 정보 조회
+                  </div>
+
+                  <div className="mt-1 text-sm text-zinc-400">
+                    GWCT · 허치슨 확인
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  className="rounded-2xl border border-white/10 bg-zinc-900 p-5 text-left transition hover:border-orange-500"
+                >
+                  <div className="text-3xl">🔧</div>
+
+                  <div className="mt-3 text-lg font-bold">
+                    차량 관리
+                  </div>
+
+                  <div className="mt-1 text-sm text-zinc-400">
+                    고장 · 수리 · 정비업체
+                  </div>
+                </button>
+
+                <Link
+                  href="/orders"
+                  className="rounded-2xl border border-white/10 bg-zinc-900 p-5 text-left transition hover:border-orange-500"
+                >
+                  <div className="text-3xl">🚛</div>
+
+                  <div className="mt-3 text-lg font-bold">
+                    알바 찾기
+                  </div>
+
+                  <div className="mt-1 text-sm text-zinc-400">
+                    남는 시간 일거리 찾기
+                  </div>
+                </Link>
+                <button
+  type="button"
+  onClick={() => {
+    setStep(1);
+    setShowOrderModal(true);
+  }}
+  className="rounded-2xl border border-white/10 bg-zinc-900 p-5 text-left transition hover:border-orange-500"
+>
+<div className="text-3xl">📦</div>
+
+  <div className="mt-3 text-lg font-bold">
+    알바 등록
+  </div>
+
+  <div className="mt-1 text-sm text-zinc-400">
+    컨테이너 일거리 등록
+  </div>
+</button>
+              </div>
+            </section>
+            {showOrderModal && (
+  <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/80 p-4 backdrop-blur-sm">
+    <div className="mx-auto my-8 max-w-4xl">
+      <div className="mb-3 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setShowOrderModal(false)}
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-2xl font-black text-zinc-900"
+        >
+          ×
+        </button>
+      </div>
+            {/* STEP 1 */}
+
             {step === 1 && (
-              <section className="mt-10 rounded-3xl border border-white/20 bg-black/55 p-5 text-white shadow-2xl backdrop-blur-md sm:p-7">
+              <section className="mt-10 rounded-3xl border border-white/10 bg-white p-5 text-zinc-900 shadow-2xl sm:p-7">
+
                 <p className="text-xs font-bold text-orange-600">
-                  STEP 1
+                  알바 등록
                 </p>
 
-                <h2 className="mt-2 text-2xl font-bold">
-                  화물 종류와 일정을 선택하세요
+                <h2 className="mt-2 text-2xl font-black">
+                  컨테이너 운송 알바 등록
                 </h2>
 
-                <div className="mt-6 grid gap-3 md:grid-cols-3">
-                  {cargoItems.map((item) => {
-                    const selected = cargoType === item.id;
+                <p className="mt-2 text-sm text-zinc-500">
+                  컨테이너 종류와 운송 일정을 선택하세요.
+                </p>
 
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setCargoType(item.id)}
-                        className={`rounded-2xl border p-5 text-left transition ${
-                          selected
-                            ? "border-orange-600 bg-orange-50 ring-2 ring-orange-100"
-                            : "border-zinc-200 bg-white hover:border-orange-300 hover:bg-orange-50/40"
-                        }`}
-                      >
-                        <div className="flex items-center gap-4">
-                        <span
-  className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-xl ${
-    selected ? "bg-orange-100" : "bg-zinc-100"
-  }`}
->
-  <img
-    src={
-      item.title === "컨테이너"
-        ? "/container.png"
-        : item.title === "건설장비"
-        ? "/construction.png"
-        : "/heavy-cargo.png"
-    }
-    alt={item.title}
-    className={`h-14 w-14 object-contain transition ${
-      selected ? "scale-110" : "scale-100"
-    }`}
-  />
-</span>
+                {/* 컨테이너 종류 */}
 
-                          <div>
-                            <h3 className="text-lg font-bold">
-                              {item.title}
-                            </h3>
+                <div className="mt-7">
+                  <p className="mb-3 text-sm font-bold text-zinc-700">
+                    컨테이너 종류
+                  </p>
 
-                            <p className="mt-1 text-sm text-zinc-500">
-                              {item.description}
-                            </p>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {cargoItems.map((item) => {
+                      const selected =
+                        cargoType === item.id;
+
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() =>
+                            selectCargo(
+                              item.id as CargoType
+                            )
+                          }
+                          className={`rounded-2xl border p-4 text-left transition ${
+                            selected
+                              ? "border-orange-600 bg-orange-50 ring-2 ring-orange-100"
+                              : "border-zinc-200 bg-white hover:border-orange-300"
+                          }`}
+                        >
+                          <div
+                            className={`text-lg font-black ${
+                              selected
+                                ? "text-orange-600"
+                                : "text-zinc-900"
+                            }`}
+                          >
+                            {item.title}
                           </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
 
-                <div className="mt-8 grid gap-5 lg:grid-cols-2">
-                <div className="rounded-2xl border border-white/20 bg-white/95 p-5 text-zinc-900 shadow-xl">
-                    <h3 className="text-lg font-bold text-zinc-900">
-                      상차 일정
-                    </h3>
-
-                    <div className="mt-4">
-                      <DatePickerField
-                        label="상차 날짜"
-                        value={pickupDate}
-                        min={today}
-                        onChange={handlePickupDateChange}
-                      />
-                    </div>
-
-                    {pickupDate && (
-  <div className="mt-4">
-    <span className="mb-2 block text-xs font-bold text-zinc-500">
-      상차 시간
-    </span>
-
-    <input
-      type="time"
-      value={pickupTime}
-      disabled={pickupTimeFlexible}
-      onChange={(event) => setPickupTime(event.target.value)}
-      className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 disabled:bg-zinc-100 disabled:text-zinc-400"
-    />
-
-    <label className="mt-3 flex items-center gap-2 text-sm text-zinc-700">
-      <input
-        type="checkbox"
-        checked={pickupTimeFlexible}
-        onChange={(event) => {
-          setPickupTimeFlexible(event.target.checked);
-          if (event.target.checked) setPickupTime("");
-        }}
-      />
-      시간 상관없음
-    </label>
-
-    {pickupTimeFlexible && (
-      <p className="mt-2 text-xs text-zinc-500">
-        배차 후 운송차주가 가능한 시간을 알려드립니다.
-      </p>
-    )}
-  </div>
-)}
-                  </div>
-
-                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
-                    <h3 className="text-lg font-bold text-zinc-900">
-                      하차 일정
-                    </h3>
-
-                    <div className="mt-4">
-                      <DatePickerField
-                        label="원하는 하차 날짜"
-                        value={deliveryDate}
-                        min={pickupDate || today}
-                        onChange={setDeliveryDate}
-                      />
-                    </div>
-
-                    {deliveryDate && (
-  <div className="mt-4">
-    <span className="mb-2 block text-xs font-bold text-zinc-500">
-      원하는 하차 시간
-    </span>
-
-    <input
-      type="time"
-      value={deliveryTime}
-      disabled={deliveryTimeFlexible}
-      onChange={(event) => setDeliveryTime(event.target.value)}
-      className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 font-semibold outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100 disabled:bg-zinc-100 disabled:text-zinc-400"
-    />
-
-    <label className="mt-3 flex items-center gap-2 text-sm text-zinc-700">
-      <input
-        type="checkbox"
-        checked={deliveryTimeFlexible}
-        onChange={(event) => {
-          setDeliveryTimeFlexible(event.target.checked);
-          if (event.target.checked) setDeliveryTime("");
-        }}
-      />
-      시간 상관없음
-    </label>
-
-    {deliveryTimeFlexible && (
-      <p className="mt-2 text-xs text-zinc-500">
-        배차 후 운송차주가 예상 시간을 알려드립니다.
-      </p>
-    )}
-  </div>
-)}
+                          <div className="mt-1 text-xs leading-5 text-zinc-500">
+                            {item.description}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                <div className="mt-6 flex justify-end">
-                  <button
-                    type="button"
-                    disabled={!canGoNext}
-                    onClick={() => setStep(2)}
-                    className="h-14 rounded-xl bg-orange-600 px-12 text-sm font-bold text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:bg-zinc-300"
-                  >
-                    다음
-                  </button>
+                {/* 상차 */}
+
+                <div className="mt-7 rounded-2xl bg-zinc-50 p-4 sm:p-5">
+                  <h3 className="font-black">
+                    상차 일정
+                  </h3>
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <DatePickerField
+                      label="상차 날짜"
+                      value={pickupDate}
+                      min={today}
+                      onChange={
+                        handlePickupDateChange
+                      }
+                    />
+
+                    <div>
+                      <span className="mb-2 block text-xs font-bold text-zinc-500">
+                        상차 시간
+                      </span>
+
+                      <input
+                        type="time"
+                        value={pickupTime}
+                        disabled={
+                          pickupTimeFlexible
+                        }
+                        onChange={(e) =>
+                          setPickupTime(
+                            e.target.value
+                          )
+                        }
+                        className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 font-bold outline-none transition focus:border-orange-500 disabled:bg-zinc-100"
+                      />
+                    </div>
+                  </div>
+
+                  <label className="mt-3 flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-200 bg-white p-4">
+                    <input
+                      type="checkbox"
+                      checked={
+                        pickupTimeFlexible
+                      }
+                      onChange={(e) => {
+                        setPickupTimeFlexible(
+                          e.target.checked
+                        );
+
+                        if (
+                          e.target.checked
+                        ) {
+                          setPickupTime("");
+                        }
+                      }}
+                    />
+
+                    <div>
+                      <div className="font-bold">
+                        시간 상관없음
+                      </div>
+
+                      <div className="text-xs text-zinc-500">
+                        운송차주가 가능한 시간을 알려드립니다.
+                      </div>
+                    </div>
+                  </label>
                 </div>
+
+                {/* 하차 */}
+
+                <div className="mt-4 rounded-2xl bg-zinc-50 p-4 sm:p-5">
+                  <h3 className="font-black">
+                    하차 일정
+                  </h3>
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <DatePickerField
+                      label="하차 날짜"
+                      value={deliveryDate}
+                      min={
+                        pickupDate || today
+                      }
+                      onChange={
+                        setDeliveryDate
+                      }
+                    />
+
+                    <div>
+                      <span className="mb-2 block text-xs font-bold text-zinc-500">
+                        하차 시간
+                      </span>
+
+                      <input
+                        type="time"
+                        value={deliveryTime}
+                        disabled={
+                          deliveryTimeFlexible
+                        }
+                        onChange={(e) =>
+                          setDeliveryTime(
+                            e.target.value
+                          )
+                        }
+                        className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 font-bold outline-none transition focus:border-orange-500 disabled:bg-zinc-100"
+                      />
+                    </div>
+                  </div>
+
+                  <label className="mt-3 flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-200 bg-white p-4">
+                    <input
+                      type="checkbox"
+                      checked={
+                        deliveryTimeFlexible
+                      }
+                      onChange={(e) => {
+                        setDeliveryTimeFlexible(
+                          e.target.checked
+                        );
+
+                        if (
+                          e.target.checked
+                        ) {
+                          setDeliveryTime("");
+                        }
+                      }}
+                    />
+
+                    <div>
+                      <div className="font-bold">
+                        시간 상관없음
+                      </div>
+
+                      <div className="text-xs text-zinc-500">
+                        배차 후 운송차주가 예상 시간을 알려드립니다.
+                      </div>
+                    </div>
+                  </label>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!canGoNext}
+                  onClick={() => setStep(2)}
+                  className="mt-6 h-16 w-full rounded-2xl bg-orange-600 text-lg font-black text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:bg-zinc-300"
+                >
+                  상세정보 입력
+                </button>
+
               </section>
             )}
 
+            {/* STEP 2 */}
+
             {step === 2 && (
               <section className="mt-10 rounded-3xl border border-white/10 bg-white p-5 text-zinc-900 shadow-2xl sm:p-7">
+
                 <p className="text-xs font-bold text-orange-600">
-                  STEP 2
+                  알바 등록
                 </p>
 
-                <h2 className="mt-2 text-2xl font-bold">
-                  운송 상세정보를 입력하세요
+                <h2 className="mt-2 text-2xl font-black">
+                  운송 상세정보
                 </h2>
 
+                {/* 선택 내용 요약 */}
+
                 <div className="mt-5 flex flex-wrap gap-2 text-sm">
-                  <span className="rounded-full bg-zinc-100 px-4 py-2 font-bold">
+
+                  <span className="rounded-full bg-orange-100 px-4 py-2 font-bold text-orange-700">
                     {selectedCargo?.title}
                   </span>
 
                   <span className="rounded-full bg-zinc-100 px-4 py-2 font-bold">
-                    상차 {formatSimpleDate(pickupDate)} {pickupTime}
+                    상차{" "}
+                    {formatSimpleDate(
+                      pickupDate
+                    )}{" "}
+                    {pickupTimeFlexible
+                      ? "시간 상관없음"
+                      : pickupTime}
                   </span>
 
                   <span className="rounded-full bg-zinc-100 px-4 py-2 font-bold">
-                    하차 {formatSimpleDate(deliveryDate)} {deliveryTime}
+                    하차{" "}
+                    {formatSimpleDate(
+                      deliveryDate
+                    )}{" "}
+                    {deliveryTimeFlexible
+                      ? "시간 상관없음"
+                      : deliveryTime}
                   </span>
+
                 </div>
 
+                {/* 장소 */}
+
                 <div className="mt-6 grid gap-4 md:grid-cols-2">
+
                   <label>
                     <span className="mb-2 block text-xs font-bold text-zinc-500">
-                      출발지
+                      상차 주소
                     </span>
 
                     <input
                       type="text"
                       value={pickupLocation}
-onChange={(e) => setPickupLocation(e.target.value)}
-                      placeholder="상차 장소를 입력하세요"
+                      onChange={(e) =>
+                        setPickupLocation(
+                          e.target.value
+                        )
+                      }
+                      placeholder="상차 주소를 입력하세요"
                       className="h-14 w-full rounded-xl border border-zinc-200 px-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
                     />
                   </label>
 
                   <label>
                     <span className="mb-2 block text-xs font-bold text-zinc-500">
-                      도착지
+                      하차 주소
                     </span>
 
                     <input
                       type="text"
                       value={deliveryLocation}
-onChange={(e) => setDeliveryLocation(e.target.value)}
-                      placeholder="하차 장소를 입력하세요"
+                      onChange={(e) =>
+                        setDeliveryLocation(
+                          e.target.value
+                        )
+                      }
+                      placeholder="하차 주소를 입력하세요"
                       className="h-14 w-full rounded-xl border border-zinc-200 px-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
                     />
                   </label>
+
                 </div>
+
+                {/* 중량 */}
+
+                <div className="mt-5">
+
+                  <label>
+                    <span className="mb-2 block text-xs font-bold text-zinc-500">
+                      컨테이너 중량 / 톤
+                    </span>
+
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={weightTons}
+                      onChange={(e) =>
+                        setWeightTons(
+                          e.target.value
+                        )
+                      }
+                      placeholder="예: 28.5"
+                      className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                    />
+
+                    <p className="mt-2 text-xs text-zinc-500">
+                      중량 또는 초과중량 여부를 판단하는 데 사용됩니다.
+                    </p>
+                  </label>
+
+                </div>
+
+                {/* 위험물 */}
+
+                <label className="mt-4 flex min-h-14 items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={hazardous}
+                    disabled={
+                      cargoType ===
+                        "20danger" ||
+                      cargoType ===
+                        "40danger"
+                    }
+                    onChange={(e) =>
+                      setHazardous(
+                        e.target.checked
+                      )
+                    }
+                  />
+
+                  <div>
+                    <span className="font-bold">
+                      위험물 운송
+                    </span>
+
+                    {(cargoType ===
+                      "20danger" ||
+                      cargoType ===
+                        "40danger") && (
+                      <p className="text-xs text-zinc-500">
+                        위험물 컨테이너를 선택해 자동 적용되었습니다.
+                      </p>
+                    )}
+                  </div>
+                </label>
+
+                {/* 상세사항 */}
 
                 <label className="mt-5 block">
                   <span className="mb-2 block text-xs font-bold text-zinc-500">
-                    화물 세부사항 및 요청사항
+                    세부사항 및 요청사항
                   </span>
 
                   <textarea
-                    rows={7}
+                    rows={6}
                     value={specialNotes}
-onChange={(e) => setSpecialNotes(e.target.value)}
-                    placeholder="화물 크기, 무게, 장비 조건, 현장 상황 등 기사에게 전달할 내용을 자유롭게 입력하세요."
+                    onChange={(e) =>
+                      setSpecialNotes(
+                        e.target.value
+                      )
+                    }
+                    placeholder="특수 컨테이너, 초과중량, 상하차 조건 등 운송차주에게 전달할 내용을 자유롭게 입력하세요."
                     className="w-full resize-none rounded-xl border border-zinc-200 p-4 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
                   />
                 </label>
+
+                {/* 지급 */}
+
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
-  <label>
-    <span className="mb-2 block text-xs font-bold text-zinc-500">
-      화물 중량 / 톤
-    </span>
-    <input
-      type="number"
-      min="0"
-      step="0.1"
-      value={weightTons}
-      onChange={(e) => setWeightTons(e.target.value)}
-      placeholder="예: 12.5"
-      className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-    />
-  </label>
 
-  <div className="flex flex-col justify-end gap-3">
-    <label className="flex h-14 items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900">
-      <input
-        type="checkbox"
-        checked={hazardous}
-        onChange={(e) => setHazardous(e.target.checked)}
-      />
-      <span className="font-bold">위험물 운송</span>
-    </label>
+                  <label>
+                    <span className="mb-2 block text-xs font-bold text-zinc-500">
+                      지급방법
+                    </span>
 
-    {cargoType === "equipment" && (
-      <label className="flex h-14 items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900">
-        <input
-          type="checkbox"
-          checked={selfLoadingRequired}
-          onChange={(e) => setSelfLoadingRequired(e.target.checked)}
-        />
-        <span className="font-bold">직접 상차 필요</span>
-      </label>
-    )}
-  </div>
-</div>
+                    <select
+                      value={paymentMethod}
+                      onChange={(e) =>
+                        setPaymentMethod(
+                          e.target.value
+                        )
+                      }
+                      className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 outline-none"
+                    >
+                      <option value="">
+                        선택하세요
+                      </option>
+
+                      <option value="현금">
+                        현금
+                      </option>
+
+                      <option value="계좌이체">
+                        계좌이체
+                      </option>
+
+                      <option value="카드">
+                        카드
+                      </option>
+                    </select>
+                  </label>
+
+                  <label>
+                    <span className="mb-2 block text-xs font-bold text-zinc-500">
+                      지급시점
+                    </span>
+
+                    <select
+                      value={paymentTiming}
+                      onChange={(e) =>
+                        setPaymentTiming(
+                          e.target.value
+                        )
+                      }
+                      className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 outline-none"
+                    >
+                      <option value="">
+                        선택하세요
+                      </option>
+
+                      <option value="즉시">
+                        즉시
+                      </option>
+
+                      <option value="당일">
+                        당일
+                      </option>
+
+                      <option value="기타">
+                        기타
+                      </option>
+                    </select>
+                  </label>
+
+                </div>
+
+                {/* 등록자 */}
+
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <label>
-  <span className="mb-2 block text-xs font-bold text-zinc-500">
-    지급방법
-  </span>
-  <select
-    value={paymentMethod}
-    onChange={(e) => setPaymentMethod(e.target.value)}
-    className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-  >
-    <option value="">선택하세요</option>
-    <option value="현금">현금</option>
-    <option value="계좌이체">계좌이체</option>
-    <option value="카드">카드</option>
-  </select>
-</label>
 
-<label>
-  <span className="mb-2 block text-xs font-bold text-zinc-500">
-    지급시점
-  </span>
-  <select
-    value={paymentTiming}
-    onChange={(e) => setPaymentTiming(e.target.value)}
-    className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-  >
-    <option value="">선택하세요</option>
-    <option value="즉시">즉시</option>
-    <option value="당일">당일</option>
-    <option value="기타">기타</option>
-  </select>
-</label>
-  <div>
-    <label className="mb-2 block text-sm font-bold text-zinc-700">
-      이름 / 업체명
-    </label>
-    <input
-      type="text"
-      value={customerName}
-      onChange={(e) => setCustomerName(e.target.value)}
-      placeholder="예: 홍길동 / STTP물류"
-      className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-    />
-  </div>
+                  <label>
+                    <span className="mb-2 block text-sm font-bold text-zinc-700">
+                      이름 / 업체명
+                    </span>
 
-  <div>
-    <label className="mb-2 block text-sm font-bold text-zinc-700">
-      연락처
-    </label>
-    <input
-      type="tel"
-      value={customerPhone}
-      onChange={(e) => setCustomerPhone(e.target.value)}
-      placeholder="예: 010-1234-5678"
-      className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-    />
-  </div>
-</div>
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) =>
+                        setCustomerName(
+                          e.target.value
+                        )
+                      }
+                      placeholder="예: STTP물류"
+                      className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 outline-none transition focus:border-orange-500"
+                    />
+                  </label>
+
+                  <label>
+                    <span className="mb-2 block text-sm font-bold text-zinc-700">
+                      연락처
+                    </span>
+
+                    <input
+                      type="tel"
+                      value={customerPhone}
+                      onChange={(e) =>
+                        setCustomerPhone(
+                          e.target.value
+                        )
+                      }
+                      placeholder="예: 010-1234-5678"
+                      className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 outline-none transition focus:border-orange-500"
+                    />
+                  </label>
+
+                </div>
+
+                {/* 운임 */}
 
                 <div className="mt-5">
-  <label className="mb-2 block text-sm font-bold text-zinc-700">
-    제시 운임
-  </label>
 
-  <input
-  type="text"
-  value={freightPrice}
-  onChange={(e) => {
-    const numbers = e.target.value.replace(/[^0-9]/g, "");
-    setFreightPrice(
-      numbers ? Number(numbers).toLocaleString("ko-KR") : ""
-    );
-  }}
-  placeholder="예: 450,000"
-  className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2"
-/>
+                  <label className="mb-2 block text-sm font-bold text-zinc-700">
+                    제시 운임
+                  </label>
 
-<div className="mt-4 flex flex-col gap-2 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm leading-6 text-orange-800 sm:flex-row sm:items-center sm:justify-between">
-  <span>
-    제시 운임은 추가 장비, 대기시간, 작업 조건 및 현장 상황에 따라 실제 운임과 달라질 수 있습니다.
-  </span>
+                  <input
+                    type="text"
+                    value={freightPrice}
+                    onChange={(e) => {
+                      const numbers =
+                        e.target.value.replace(
+                          /[^0-9]/g,
+                          ""
+                        );
 
-  <span className="shrink-0 text-base font-bold">
-    금 {freightPrice || "0"} 원
-  </span>
-</div>
-</div>
+                      setFreightPrice(
+                        numbers
+                          ? Number(
+                              numbers
+                            ).toLocaleString(
+                              "ko-KR"
+                            )
+                          : ""
+                      );
+                    }}
+                    placeholder="예: 450,000"
+                    className="h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 outline-none transition focus:border-orange-500"
+                  />
+
+                  <div className="mt-4 flex flex-col gap-2 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm leading-6 text-orange-800 sm:flex-row sm:items-center sm:justify-between">
+
+                    <span>
+                      제시 운임은 대기시간,
+                      작업조건 및 현장 상황에
+                      따라 실제 운임과 달라질
+                      수 있습니다.
+                    </span>
+
+                    <span className="shrink-0 text-base font-black">
+                      금{" "}
+                      {freightPrice || "0"} 원
+                    </span>
+
+                  </div>
+                </div>
+
+                {/* 버튼 */}
 
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="rounded-xl border border-zinc-300 px-8 py-3 text-sm font-bold transition hover:bg-zinc-50"
+                    className="rounded-xl border border-zinc-300 px-8 py-4 text-sm font-bold"
                   >
                     이전
                   </button>
 
                   <button
                     type="button"
+                    disabled={saving}
                     onClick={submitOrder}
-                    className="rounded-xl bg-orange-600 px-8 py-3 text-sm font-bold text-white transition hover:bg-orange-500"
+                    className="rounded-xl bg-orange-600 px-8 py-4 text-sm font-bold text-white transition hover:bg-orange-500 disabled:opacity-50"
                   >
-                    오더 등록
+                    {saving
+                      ? "등록 중..."
+                      : "알바 등록"}
                   </button>
+
                 </div>
+
               </section>
             )}
 
+            {/* STEP 3 */}
+
             {step === 3 && (
               <section className="mt-10 rounded-3xl border border-white/10 bg-white p-8 text-center text-zinc-900 shadow-2xl sm:p-12">
+
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 text-3xl font-bold text-orange-600">
                   ✓
                 </div>
 
-                <h2 className="mt-6 text-3xl font-bold">
-                  오더가 등록되었습니다
+                <h2 className="mt-6 text-3xl font-black">
+                  알바가 등록되었습니다
                 </h2>
 
                 <p className="mt-4 text-lg leading-8 text-zinc-600">
-                  배차가 완료되면 배송기사가 연락드립니다.
+                  등록된 알바는 운송차주가
+                  <br />
+                  알바 찾기에서 확인할 수 있습니다.
                 </p>
 
-                <button
-                  type="button"
-                  onClick={resetOrder}
-                  className="mt-8 rounded-xl bg-orange-600 px-8 py-4 text-sm font-bold text-white transition hover:bg-orange-500"
-                >
-                  새 오더 등록
-                </button>
+                <div className="mt-8 grid gap-3 sm:grid-cols-2">
+
+                  <Link
+                    href="/orders"
+                    className="rounded-xl border border-zinc-300 px-8 py-4 text-sm font-bold"
+                  >
+                    등록된 알바 보기
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={resetOrder}
+                    className="rounded-xl bg-orange-600 px-8 py-4 text-sm font-bold text-white"
+                  >
+                    새 알바 등록
+                  </button>
+
+                </div>
+
               </section>
             )}
-          </div>
-        </section>
-
-        <section className="border-y border-white/10 bg-zinc-950 px-4 py-16 sm:px-6 lg:px-8">
-          <div className="mx-auto grid max-w-7xl gap-5 md:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-              <span className="text-sm font-bold text-orange-500">
-                01
-              </span>
-              <h2 className="mt-4 text-xl font-bold">
-                화물과 일정 선택
-              </h2>
-              <p className="mt-3 leading-7 text-zinc-400">
-                화물 종류와 상차·하차 날짜 및 시간을 선택합니다.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-              <span className="text-sm font-bold text-orange-500">
-                02
-              </span>
-              <h2 className="mt-4 text-xl font-bold">
-                상세조건 입력
-              </h2>
-              <p className="mt-3 leading-7 text-zinc-400">
-                출발지와 도착지, 기사에게 전달할 조건을 입력합니다.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-              <span className="text-sm font-bold text-orange-500">
-                03
-              </span>
-              <h2 className="mt-4 text-xl font-bold">
-                배차 연락
-              </h2>
-              <p className="mt-3 leading-7 text-zinc-400">
-                배차가 완료되면 담당 배송기사가 직접 연락합니다.
-              </p>
-            </div>
+    </div>
+  </div>
+)}
           </div>
         </section>
       </main>

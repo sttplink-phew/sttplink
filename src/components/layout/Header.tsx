@@ -37,7 +37,7 @@ export function Header() {
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
       <Link href="/" className="flex items-center">
   <Image
-    src="/sttplo.png"
+    src="/mlogo.png"
     alt="STTPLINK"
     width={750}
     height={250}
@@ -51,14 +51,14 @@ export function Header() {
             href="/orders"
             className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-300 transition hover:bg-white/5 hover:text-white sm:block"
           >
-            배차 가능한 오더
+            알바 찾기
           </Link>
 
           <Link
             href="/"
             className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-orange-500"
           >
-            오더 등록
+            알바 등록
           </Link>
 
           {!user && (
