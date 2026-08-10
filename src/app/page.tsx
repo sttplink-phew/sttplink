@@ -113,7 +113,7 @@ function DatePickerField({
           min={min}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-14 w-full min-w-0 max-w-full rounded-xl ...
+          className="h-14 w-full min-w-0 max-w-full rounded-xl border border-zinc-200 bg-white px-4 pr-12 font-bold text-zinc-900 outline-none transition focus:border-orange-500"
         />
 
         <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xl">
