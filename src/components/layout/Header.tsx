@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 export function Header() {
   const supabase = createClient();
 
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [vehicleNumber, setVehicleNumber] = useState("");
 
   useEffect(() => {

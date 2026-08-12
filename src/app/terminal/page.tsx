@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
+import Link from "next/link";
 
 type TerminalInfo = {
   hasInfo?: boolean;
@@ -134,12 +135,12 @@ if (data?.hasInfo) {
       <div className="flex items-center justify-between">
   <h1 className="text-2xl font-black">터미널 정보</h1>
 
-  <a
-    href="/"
-    className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold"
-  >
-    홈
-  </a>
+  <Link
+  href="/"
+  className="rounded-xl border ..."
+>
+  홈
+</Link>
 </div>
 
         <div className="mt-2 text-sm text-zinc-400">
