@@ -21,6 +21,7 @@ export default function DailyPage() {
   const [routeTitle, setRouteTitle] = useState("");
   const [savingRoute, setSavingRoute] = useState(false);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [showNewRouteForm, setShowNewRouteForm] = useState(false);
   const [activeLoadType, setActiveLoadType] = useState<"full" | "empty">("full");
   type RouteLog = {
     full20: number;
@@ -233,25 +234,49 @@ useEffect(() => {
           )}
 
 {!loading &&
-  routes.map((route) => (
+  routes
+  .filter((route) => routeLogs[route.id] !== undefined)
+  .map((route) => (
     <div key={route.id} className="space-y-2">
-      <button
-        type="button"
-        onClick={() =>
+
+      <div
+         onClick={() =>
           setSelectedRouteId(
             selectedRouteId === route.id ? null : route.id
           )
         }
         className="w-full rounded-2xl border border-white/10 bg-zinc-900 p-5 text-left"
       >
-        <div className="text-lg font-black">
-          {route.title}
-        </div>
+        <div className="flex items-center justify-between">
+  <div className="text-lg font-black">
+    {route.title}
+  </div>
+
+  <button
+    type="button"
+    onClick={(e) => {
+      e.stopPropagation();
+
+      setRouteLogs((prev) => {
+        const next = { ...prev };
+        delete next[route.id];
+        return next;
+      });
+
+      if (selectedRouteId === route.id) {
+        setSelectedRouteId(null);
+      }
+    }}
+    className="rounded-lg border border-red-500/30 px-3 py-1 text-xs font-bold text-red-400"
+  >
+    삭제
+  </button>
+</div>
 
         <div className="mt-1 text-xs text-zinc-500">
           눌러서 오늘 운행 입력
         </div>
-      </button>
+        </div>
 
       {selectedRouteId === route.id && (
         <div className="rounded-2xl border border-white/10 bg-zinc-950 p-4">
@@ -808,49 +833,126 @@ useEffect(() => {
 
 {addingRoute && (
   <div className="rounded-2xl border border-white/10 bg-zinc-900 p-4">
-    <div className="mb-3 text-sm font-black text-zinc-300">
-      {routes.length === 0 ? "노선1" : `노선${routes.length + 1}`}
-    </div>
+    {!showNewRouteForm ? (
+      <>
+        <div className="mb-3 text-sm font-black text-zinc-300">
+          추가할 노선 선택
+        </div>
 
-    <input
-      type="text"
-      value={routeTitle}
-      onChange={(e) => setRouteTitle(e.target.value)}
-      placeholder="노선 제목 입력"
-      className="h-14 w-full rounded-xl border border-white/10 bg-zinc-800 px-4 text-base font-bold text-white outline-none focus:border-orange-500"
-    />
+        <div className="space-y-2">
+          {routes
+            .filter((route) => routeLogs[route.id] === undefined)
+            .map((route) => (
+              <button
+                key={route.id}
+                type="button"
+                onClick={() => {
+                  setRouteLogs((prev) => ({
+                    ...prev,
+                    [route.id]: {
+                      full20: 0,
+                      full40: 0,
+                      fullOther: 0,
+                      empty20: 0,
+                      empty40: 0,
+                      emptyOther: 0,
+                    },
+                  }));
 
-    <div className="mt-3 grid grid-cols-2 gap-2">
-      <button
-        type="button"
-        onClick={() => {
-          setAddingRoute(false);
-          setRouteTitle("");
-        }}
-        className="h-12 rounded-xl bg-zinc-800 font-bold"
-      >
-        취소
-      </button>
+                  setAddingRoute(false);
+                  setShowNewRouteForm(false);
+                  setSelectedRouteId(route.id);
+                }}
+                className="w-full rounded-xl bg-zinc-800 px-4 py-3 text-left font-bold"
+              >
+                {route.title}
+              </button>
+            ))}
+        </div>
 
-      <button
-        type="button"
-        onClick={saveRoute}
-        disabled={!routeTitle.trim() || savingRoute}
-        className="h-12 rounded-xl bg-orange-600 font-black disabled:opacity-40"
-      >
-        {savingRoute ? "저장 중..." : "제목 저장"}
-      </button>
-    </div>
+        {routes.filter(
+          (route) => routeLogs[route.id] === undefined
+        ).length === 0 && (
+          <div className="py-3 text-center text-sm text-zinc-500">
+            추가할 기존 노선이 없습니다.
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => {
+            setRouteTitle("");
+            setShowNewRouteForm(true);
+          }}
+          className="mt-3 h-11 w-full rounded-xl bg-orange-600 text-sm font-black text-white"
+        >
+          + 새 노선 만들기
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setAddingRoute(false);
+            setShowNewRouteForm(false);
+          }}
+          className="mt-2 h-11 w-full rounded-xl border border-white/10 text-sm font-bold text-zinc-400"
+        >
+          닫기
+        </button>
+      </>
+    ) : (
+      <>
+        <div className="mb-3 text-sm font-black text-zinc-300">
+          새 노선 만들기
+        </div>
+
+        <input
+          type="text"
+          value={routeTitle}
+          onChange={(e) => setRouteTitle(e.target.value)}
+          placeholder="노선 제목 입력"
+          className="h-14 w-full rounded-xl border border-white/10 bg-zinc-800 px-4 text-base font-bold text-white outline-none focus:border-orange-500"
+        />
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setRouteTitle("");
+              setShowNewRouteForm(false);
+            }}
+            className="h-12 rounded-xl bg-zinc-800 font-bold"
+          >
+            취소
+          </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              await saveRoute();
+              setShowNewRouteForm(false);
+            }}
+            disabled={!routeTitle.trim() || savingRoute}
+            className="h-12 rounded-xl bg-orange-600 font-black disabled:opacity-40"
+          >
+            {savingRoute ? "저장 중..." : "제목 저장"}
+          </button>
+          
+        </div>
+        </>
+    )}
   </div>
 )}
+
 <div
   onClick={saveDailyLog}
   className="relative z-50 mt-4 flex h-16 w-full cursor-pointer items-center justify-center rounded-2xl bg-orange-600 text-lg font-black text-white"
 >
   운행 저장
 </div>
+
 </section>
-      </div>
-    </main>
-  );
+</div>
+</main>
+);
 }

@@ -63,10 +63,8 @@ export default function DriverMyPage() {
       setProfile(driverData[0]);
 
       const now = new Date();
-
       const year = now.getFullYear();
       const month = String(now.getMonth() + 1).padStart(2, "0");
-
       const monthStart = `${year}-${month}-01`;
 
       const { data: logData, error: logError } = await supabase
@@ -103,17 +101,13 @@ export default function DriverMyPage() {
 
   const emptyTotal = logs.reduce(
     (sum, log) =>
-      sum +
-      (log.empty20 ?? 0) +
-      (log.empty40 ?? 0),
+      sum + (log.empty20 ?? 0) + (log.empty40 ?? 0),
     0
   );
 
   const dangerTotal = logs.reduce(
     (sum, log) =>
-      sum +
-      (log.danger20 ?? 0) +
-      (log.danger40 ?? 0),
+      sum + (log.danger20 ?? 0) + (log.danger40 ?? 0),
     0
   );
 
@@ -133,7 +127,6 @@ export default function DriverMyPage() {
     return (
       <>
         <Header />
-
         <main className="flex min-h-screen items-center justify-center bg-[#080808] text-white">
           불러오는 중...
         </main>
@@ -152,154 +145,173 @@ export default function DriverMyPage() {
       <main className="min-h-screen bg-[#080808] px-4 pb-16 pt-24 text-white">
         <div className="mx-auto max-w-lg">
 
-          <div className="mb-6">
-            <p className="text-xs font-bold text-orange-500">
-              STTP LINK
-            </p>
-
-            <h1 className="mt-1 text-2xl font-black">
-              내 운행
-            </h1>
-
-            {profile.vehicle_number && (
-              <p className="mt-2 text-sm text-zinc-400">
-                차량번호 {profile.vehicle_number}
-              </p>
-            )}
-          </div>
-
-          <section className="rounded-3xl border border-white/10 bg-zinc-900 p-5">
+          {/* 내 정보 */}
+          <section className="rounded-2xl border border-white/10 bg-zinc-900 p-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-black">
-                이번 달 운행
-              </h2>
+              <div>
+                <p className="text-xs font-bold text-orange-500">
+                  STTP LINK
+                </p>
 
-              <span className="text-sm text-zinc-500">
-                현재까지
-              </span>
+                <h1 className="mt-1 text-xl font-black">
+                  {profile.vehicle_number
+                    ? `${profile.vehicle_number.slice(-4)}님`
+                    : "내 정보"}
+                </h1>
+
+                {profile.vehicle_number && (
+                  <p className="mt-1 text-sm text-zinc-400">
+                    {profile.vehicle_number}
+                  </p>
+                )}
+              </div>
+
+              <Link
+                href="/"
+                className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-zinc-300"
+              >
+                홈
+              </Link>
             </div>
+          </section>
 
-            <div className="mt-5 grid grid-cols-2 gap-3">
+          {/* 이번 달 예상금액 */}
+          <section className="mt-3 rounded-2xl border border-orange-500/20 bg-zinc-900 p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-bold text-zinc-400">
+                  이번 달 예상금액
+                </p>
 
-              <div className="rounded-2xl bg-zinc-800 p-4">
-                <div className="text-sm text-zinc-400">
-                  FULL
-                </div>
-
-                <div className="mt-1 text-3xl font-black text-orange-500">
-                  {fullTotal}
-                </div>
-              </div>
-
-              <div className="rounded-2xl bg-zinc-800 p-4">
-                <div className="text-sm text-zinc-400">
-                  EMPTY
-                </div>
-
-                <div className="mt-1 text-3xl font-black">
-                  {emptyTotal}
-                </div>
-              </div>
-
-              <div className="rounded-2xl bg-zinc-800 p-4">
-                <div className="text-sm text-zinc-400">
-                  위험물
-                </div>
-
-                <div className="mt-1 text-3xl font-black">
-                  {dangerTotal}
-                </div>
-              </div>
-
-              <div className="rounded-2xl bg-zinc-800 p-4">
-                <div className="text-sm text-zinc-400">
-                  일한 날
-                </div>
-
-                <div className="mt-1 text-3xl font-black">
-                  {workDays}
+                <div className="mt-2 text-3xl font-black text-orange-500">
+                  -
                   <span className="ml-1 text-base text-zinc-400">
-                    일
+                    원
                   </span>
                 </div>
               </div>
 
+              <span className="rounded-lg bg-orange-500/10 px-2 py-1 text-xs font-bold text-orange-400">
+                예상
+              </span>
+            </div>
+
+            <p className="mt-3 text-xs text-zinc-500">
+              노선별 단가표를 등록하면 운행기록을 기준으로 자동 계산됩니다.
+            </p>
+          </section>
+
+          {/* 이번 달 운행 실적 */}
+          <section className="mt-3 rounded-2xl border border-white/10 bg-zinc-900 p-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-black">이번 달 운행 실적</h2>
+              <span className="text-xs text-zinc-500">현재까지</span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-xl bg-zinc-800 p-3">
+                <div className="text-xs text-zinc-400">FULL</div>
+                <div className="mt-1 text-2xl font-black text-orange-500">
+                  {fullTotal}
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-zinc-800 p-3">
+                <div className="text-xs text-zinc-400">EMPTY</div>
+                <div className="mt-1 text-2xl font-black">
+                  {emptyTotal}
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-zinc-800 p-3">
+                <div className="text-xs text-zinc-400">일한 날</div>
+                <div className="mt-1 text-2xl font-black">
+                  {workDays}
+                  <span className="ml-1 text-xs text-zinc-400">일</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-2 rounded-xl bg-zinc-800/70 px-3 py-2">
+              <span className="text-xs text-zinc-400">위험물</span>
+              <span className="ml-2 font-black">{dangerTotal}</span>
             </div>
           </section>
 
-          <section className="mt-4 grid grid-cols-2 gap-3">
+          {/* 노선별 상세 */}
+          <section className="mt-3 rounded-2xl border border-white/10 bg-zinc-900 p-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-black">노선별 운행 상세</h2>
+              <span className="text-xs text-zinc-500">이번 달</span>
+            </div>
 
-            <Link
-              href="/daily"
-              className="rounded-2xl border border-white/10 bg-zinc-900 p-5 transition hover:border-orange-500"
-            >
-              <div className="text-3xl">📊</div>
+            <div className="mt-4 rounded-xl border border-dashed border-white/10 p-4 text-center">
+              <p className="text-sm text-zinc-400">
+                노선별 FULL · EMPTY · 20FT · 40FT
+              </p>
 
-              <div className="mt-3 text-lg font-black">
-                오늘 운행
-              </div>
-
-              <div className="mt-1 text-sm text-zinc-400">
-                오늘 기록하기
-              </div>
-            </Link>
-
-            <Link
-  href="/terminal"
-  className="rounded-2xl border border-white/10 bg-zinc-900 p-5 transition hover:border-orange-500"
->
-  <div className="text-3xl">⚓</div>
-
-  <div className="mt-3 text-lg font-black">
-    터미널 정보
-  </div>
-
-  <div className="mt-1 text-sm text-zinc-400">
-    GWCT · 허치슨
-  </div>
-</Link>
-
-            <Link
-  href="/maintenance"
-  className="rounded-2xl border border-white/10 bg-zinc-900 p-5 transition hover:border-orange-500"
->
-  <div className="text-3xl">🔧</div>
-
-  <div className="mt-3 text-lg font-black">
-    차량 관리
-  </div>
-
-  <div className="mt-1 text-sm text-zinc-400">
-    고장 · 수리 · 정비
-  </div>
-</Link>
-
-            <Link
-              href="/orders"
-              className="rounded-2xl border border-white/10 bg-zinc-900 p-5 transition hover:border-orange-500"
-            >
-              <div className="text-3xl">🚛</div>
-
-              <div className="mt-3 text-lg font-black">
-                알바 찾기
-              </div>
-
-              <div className="mt-1 text-sm text-zinc-400">
-                남는 시간 일거리
-              </div>
-            </Link>
-
+              <p className="mt-1 text-xs text-zinc-600">
+                운행일지 데이터 연결 예정
+              </p>
+            </div>
           </section>
 
-          <section className="mt-4 rounded-2xl border border-white/10 bg-zinc-900 p-5">
+          {/* 개인 관리 */}
+          <section className="mt-3 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              className="rounded-2xl border border-white/10 bg-zinc-900 p-4 text-left"
+            >
+              <div className="text-2xl">₩</div>
+              <div className="mt-3 font-black">단가표 관리</div>
+              <div className="mt-1 text-xs text-zinc-500">
+                노선별 운송단가
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="rounded-2xl border border-white/10 bg-zinc-900 p-4 text-left"
+            >
+              <div className="text-2xl">📅</div>
+              <div className="mt-3 font-black">월별 정산</div>
+              <div className="mt-1 text-xs text-zinc-500">
+                월별 운행 · 예상금액
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => router.push("/driver/profile?mode=edit")}
+              className="rounded-2xl border border-white/10 bg-zinc-900 p-4 text-left"
+            >
+              <div className="text-2xl">🚛</div>
+              <div className="mt-3 font-black">차량 정보</div>
+              <div className="mt-1 text-xs text-zinc-500">
+                차량 · 운송차주 정보
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="rounded-2xl border border-white/10 bg-zinc-900 p-4 text-left"
+            >
+              <div className="text-2xl">🛣️</div>
+              <div className="mt-3 font-black">노선 관리</div>
+              <div className="mt-1 text-xs text-zinc-500">
+                내 운행노선 설정
+              </div>
+            </button>
+          </section>
+
+          {/* 최근 운행 */}
+          <section className="mt-3 rounded-2xl border border-white/10 bg-zinc-900 p-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-black">
-                최근 운행
-              </h2>
+              <h2 className="font-black">최근 운행</h2>
 
               <Link
                 href="/daily"
-                className="text-sm font-bold text-orange-500"
+                className="text-xs font-bold text-orange-500"
               >
                 날짜별 보기
               </Link>
@@ -316,11 +328,11 @@ export default function DriverMyPage() {
                     key={log.work_date}
                     className="border-b border-white/5 pb-3 last:border-0 last:pb-0"
                   >
-                    <div className="font-bold">
+                    <div className="text-sm font-bold">
                       {log.work_date}
                     </div>
 
-                    <div className="mt-1 text-sm text-zinc-400">
+                    <div className="mt-1 text-xs text-zinc-400">
                       FULL{" "}
                       {(log.full20 ?? 0) +
                         (log.full40 ?? 0) +
@@ -340,17 +352,6 @@ export default function DriverMyPage() {
               )}
             </div>
           </section>
-
-          <button
-            type="button"
-            onClick={() =>
-              router.push("/driver/profile?mode=edit")
-            }
-            className="mt-4 h-14 w-full rounded-2xl border border-white/15 text-sm font-bold text-zinc-300"
-          >
-            내 차량정보 수정
-          </button>
-
         </div>
       </main>
 

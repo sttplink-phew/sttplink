@@ -598,29 +598,51 @@ if (monthLogs) {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(234,88,12,0.20),transparent_38%)]" />
 
           <div className="relative mx-auto max-w-7xl">
+    
+          <section className="mb-6 rounded-2xl border border-white/10 bg-zinc-950/80 p-4">
+  <div className="mb-3 flex items-center justify-between">
+    <h2 className="text-lg font-black text-white">게시판</h2>
 
-            {/* 메인 소개 */}
+    <button
+      type="button"
+      className="text-sm font-bold text-orange-500"
+    >
+      글쓰기
+    </button>
+  </div>
 
-            <div className="max-w-4xl">
-              <p className="mb-4 text-sm font-bold text-orange-500">
-                광양항 컨테이너 운송차주 커뮤니티
-              </p>
+  <div className="divide-y divide-white/10">
+    <button
+      type="button"
+      className="flex w-full items-center justify-between py-3 text-left"
+    >
+      <span className="truncate text-sm font-medium text-zinc-200">
+        광양항 운송 정보 공유합니다
+      </span>
+      <span className="ml-3 shrink-0 text-xs text-zinc-500">08:20</span>
+    </button>
 
-              <h1 className="text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-                광양항 컨테이너 운송차주의
-                <br />
+    <button
+      type="button"
+      className="flex w-full items-center justify-between py-3 text-left"
+    >
+      <span className="truncate text-sm font-medium text-zinc-200">
+        대통 터미널 대기 상황
+      </span>
+      <span className="ml-3 shrink-0 text-xs text-zinc-500">07:55</span>
+    </button>
 
-                <span className="text-orange-500">
-                  하루를 연결합니다
-                </span>
-              </h1>
-
-              <p className="mt-6 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">
-                회전수 기록부터 터미널 정보, 차량 정비 정보,
-                <br />
-                남는 시간의 일거리까지 한곳에서 확인하세요.
-              </p>
-            </div>
+    <button
+      type="button"
+      className="flex w-full items-center justify-between py-3 text-left"
+    >
+      <span className="truncate text-sm font-medium text-zinc-200">
+        오늘 부산 운행하시는 분?
+      </span>
+      <span className="ml-3 shrink-0 text-xs text-zinc-500">07:31</span>
+    </button>
+  </div>
+</section>
 
             {/* 주요 서비스 */}
 
