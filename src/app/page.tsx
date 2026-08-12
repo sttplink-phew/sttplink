@@ -179,7 +179,20 @@ export default function HomePage() {
   
   const [monthFull, setMonthFull] = useState(0);
   const [monthEmpty, setMonthEmpty] = useState(0);
-  
+  const [monthRouteSummary, setMonthRouteSummary] = useState<
+  Record<
+    string,
+    {
+      title: string;
+      full20: number;
+      full40: number;
+      fullOther: number;
+      empty20: number;
+      empty40: number;
+      emptyOther: number;
+    }
+  >
+>({});
   const [openOrderCount, setOpenOrderCount] = useState(0);
   const [monthOrderCount, setMonthOrderCount] = useState(0);
   const selectedCargo = useMemo(
@@ -207,7 +220,7 @@ export default function HomePage() {
         .select("vehicle_number, truck_brand, truck_model")
         .eq("user_id", user.id)
         .maybeSingle();
-  
+
       if (driver) {
         setVehicleNumber(driver.vehicle_number ?? "");
   
@@ -220,25 +233,45 @@ export default function HomePage() {
   
       {loggedIn ? "운행 현황" : "오늘 운행"}
       const { data: todayLog } = await supabase
-        .from("daily_logs")
-        .select("full20, full40, danger20, danger40, empty20, empty40")
-        .eq("user_id", user.id)
-        .eq("work_date", today)
-        .maybeSingle();
-  
-      if (todayLog) {
-        setTodayFull(
-          (todayLog.full20 ?? 0) +
-            (todayLog.full40 ?? 0) +
-            (todayLog.danger20 ?? 0) +
-            (todayLog.danger40 ?? 0)
-        );
-  
-        setTodayEmpty(
-          (todayLog.empty20 ?? 0) +
-            (todayLog.empty40 ?? 0)
-        );
-      }
+  .from("daily_route_logs")
+  .select("route_logs")
+  .eq("user_id", user.id)
+  .eq("work_date", today)
+  .maybeSingle();
+
+  console.log("메인 오늘 운행:", todayLog);
+
+if (todayLog?.route_logs) {
+  const logs = todayLog.route_logs as Record<
+    string,
+    {
+      full20?: number;
+      full40?: number;
+      fullOther?: number;
+      empty20?: number;
+      empty40?: number;
+      emptyOther?: number;
+    }
+  >;
+
+  let fullTotal = 0;
+  let emptyTotal = 0;
+
+  Object.values(logs).forEach((log) => {
+    fullTotal +=
+      (log.full20 ?? 0) +
+      (log.full40 ?? 0) +
+      (log.fullOther ?? 0);
+
+    emptyTotal +=
+      (log.empty20 ?? 0) +
+      (log.empty40 ?? 0) +
+      (log.emptyOther ?? 0);
+  });
+
+  setTodayFull(fullTotal);
+  setTodayEmpty(emptyTotal);
+}
   
       // 이번 달 운행
       const now = new Date();
@@ -252,31 +285,94 @@ export default function HomePage() {
 
 setMonthOrderCount(monthCount ?? 0);
   
-      const { data: monthLogs } = await supabase
-        .from("daily_logs")
-        .select("full20, full40, danger20, danger40, empty20, empty40")
-        .eq("user_id", user.id)
-        .gte("work_date", monthStart);
-  
-      if (monthLogs) {
-        let full = 0;
-        let empty = 0;
-  
-        monthLogs.forEach((log) => {
-          full +=
-            (log.full20 ?? 0) +
-            (log.full40 ?? 0) +
-            (log.danger20 ?? 0) +
-            (log.danger40 ?? 0);
-  
-          empty +=
-            (log.empty20 ?? 0) +
-            (log.empty40 ?? 0);
-        });
-  
-        setMonthFull(full);
-        setMonthEmpty(empty);
+const { data: routeRows } = await supabase
+  .from("driver_routes")
+  .select("id, title")
+  .eq("user_id", user.id)
+  .eq("is_active", true);
+
+const routeTitleMap = new Map(
+  (routeRows ?? []).map((route) => [route.id, route.title])
+);
+
+const { data: monthLogs } = await supabase
+  .from("daily_route_logs")
+  .select("route_logs")
+  .eq("user_id", user.id)
+  .gte("work_date", monthStart);
+
+if (monthLogs) {
+  let full = 0;
+  let empty = 0;
+
+  const summary: Record<
+  string,
+  {
+    title: string;
+    full20: number;
+    full40: number;
+    fullOther: number;
+    empty20: number;
+    empty40: number;
+    emptyOther: number;
+  }
+> = {};
+
+  monthLogs.forEach((row) => {
+    const logs = row.route_logs as Record<
+      string,
+      {
+        full20?: number;
+        full40?: number;
+        fullOther?: number;
+        empty20?: number;
+        empty40?: number;
+        emptyOther?: number;
       }
+    >;
+
+    Object.entries(logs ?? {}).forEach(([routeId, log]) => {
+      const routeFull =
+        (log.full20 ?? 0) +
+        (log.full40 ?? 0) +
+        (log.fullOther ?? 0);
+
+      const routeEmpty =
+        (log.empty20 ?? 0) +
+        (log.empty40 ?? 0) +
+        (log.emptyOther ?? 0);
+
+      full += routeFull;
+      empty += routeEmpty;
+
+      const routeTitle = routeTitleMap.get(routeId) ?? "노선";
+
+      if (!summary[routeTitle]) {
+        summary[routeTitle] = {
+          title: routeTitle,
+          full20: 0,
+          full40: 0,
+          fullOther: 0,
+          empty20: 0,
+          empty40: 0,
+          emptyOther: 0,
+        };
+      }
+      
+      summary[routeTitle].full20 += log.full20 ?? 0;
+      summary[routeTitle].full40 += log.full40 ?? 0;
+      summary[routeTitle].fullOther += log.fullOther ?? 0;
+      
+      summary[routeTitle].empty20 += log.empty20 ?? 0;
+      summary[routeTitle].empty40 += log.empty40 ?? 0;
+      summary[routeTitle].emptyOther += log.emptyOther ?? 0;
+    });
+  });
+
+  setMonthFull(full);
+  setMonthEmpty(empty);
+  setMonthRouteSummary(summary);
+}
   
       // 현재 알바
       const { count } = await supabase
@@ -549,15 +645,65 @@ setMonthOrderCount(monthCount ?? 0);
                   {loggedIn ? "운행 현황" : "오늘 운행"}
                   </div>
 
-                  <div className="mt-1 text-sm text-zinc-400">
-                  {loggedIn
-  ? `이번 달 FULL ${monthFull} · EMPTY ${monthEmpty}`
-  : "오늘 회전수 기록"}
-                  </div>
+                  <div className="mt-1 space-y-1 text-sm text-zinc-400">
+                  {loggedIn ? (
+  Object.values(monthRouteSummary).length > 0 ? (
+    Object.values(monthRouteSummary).map((route) => {
+      const full =
+        route.full20 + route.full40 + route.fullOther;
+
+      const empty =
+        route.empty20 + route.empty40 + route.emptyOther;
+
+      return (
+        <div key={route.title}>
+          <span className="font-bold text-white">
+            {route.title}
+          </span>
+
+          {full > 0 && (
+            <span>
+              {" "}· F {full}
+              {" ("}
+              {route.full20 > 0 && `20:${route.full20}`}
+              {route.full20 > 0 && route.full40 > 0 && " / "}
+              {route.full40 > 0 && `40:${route.full40}`}
+              {(route.full20 > 0 || route.full40 > 0) &&
+                route.fullOther > 0 &&
+                " / "}
+              {route.fullOther > 0 && `기타:${route.fullOther}`}
+              {")"}
+            </span>
+          )}
+
+          {empty > 0 && (
+            <span>
+              {" "}· E {empty}
+              {" ("}
+              {route.empty20 > 0 && `20:${route.empty20}`}
+              {route.empty20 > 0 && route.empty40 > 0 && " / "}
+              {route.empty40 > 0 && `40:${route.empty40}`}
+              {(route.empty20 > 0 || route.empty40 > 0) &&
+                route.emptyOther > 0 &&
+                " / "}
+              {route.emptyOther > 0 && `기타:${route.emptyOther}`}
+              {")"}
+            </span>
+          )}
+        </div>
+      );
+    })
+  ) : (
+    <div>이번 달 운행 기록 없음</div>
+  )
+) : (
+  <div>오늘 회전수 기록</div>
+)}
+</div>
                 </Link>
 
-                <button
-                  type="button"
+                <Link
+                 href="/terminal"
                   className="rounded-2xl border border-white/10 bg-zinc-900 p-5 text-left transition hover:border-orange-500"
                 >
                   <div className="text-3xl">⚓</div>
@@ -607,7 +753,7 @@ setMonthOrderCount(monthCount ?? 0);
       : "차량정보 등록 필요"
     : "로그인 후 터미널 정보를 확인할 수 있습니다."}
 </div>
-                </button>
+</Link>
 
                 <Link
   href="/maintenance"
@@ -702,43 +848,20 @@ setMonthOrderCount(monthCount ?? 0);
                     컨테이너 종류
                   </p>
 
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {cargoItems.map((item) => {
-                      const selected =
-                        cargoType === item.id;
+                  <div className="space-y-4">
+  <button
+    type="button"
+    className="w-full rounded-2xl border border-zinc-200 bg-white p-4 text-left font-black text-zinc-900 hover:border-orange-300"
+  >
+    노선1 TEST
+  </button>
 
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() =>
-                            selectCargo(
-                              item.id as CargoType
-                            )
-                          }
-                          className={`rounded-2xl border p-4 text-left transition ${
-                            selected
-                              ? "border-orange-600 bg-orange-50 ring-2 ring-orange-100"
-                              : "border-zinc-200 bg-white hover:border-orange-300"
-                          }`}
-                        >
-                          <div
-                            className={`text-lg font-black ${
-                              selected
-                                ? "text-orange-600"
-                                : "text-zinc-900"
-                            }`}
-                          >
-                            {item.title}
-                          </div>
-
-                          <div className="mt-1 text-xs leading-5 text-zinc-500">
-                            {item.description}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+  <input
+    type="text"
+    placeholder="노선 제목 입력"
+    className="w-full rounded-2xl border border-zinc-200 bg-white p-4 text-base outline-none focus:border-orange-500"
+  />
+</div>
                 </div>
 
                 {/* 상차 */}

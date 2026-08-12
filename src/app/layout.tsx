@@ -13,18 +13,22 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "STTPlink — AI-Powered Freight Platform",
-  description:
-    "Specialized freight platform for container transport, heavy haul, oversized cargo, and construction equipment. Now recruiting professional drivers.",
+  title: "STTP LINK",
+  description: "광양항 기반 운송차주 커뮤니티",
   keywords: [
-    "freight",
-    "logistics",
-    "container transport",
-    "heavy haul",
-    "oversized cargo",
-    "construction equipment",
-    "AI freight",
+    "광양항",
+    "운송차주",
+    "컨테이너 운송",
+    "화물운송",
+    "운행일지",
+    "터미널 정보",
+    "STTP LINK",
   ],
+  openGraph: {
+    title: "STTP LINK",
+    description: "광양항 기반 운송차주 커뮤니티",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -33,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="ko">
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-sans`}
       >

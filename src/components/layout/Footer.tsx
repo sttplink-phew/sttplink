@@ -16,7 +16,7 @@ export function Footer() {
                 STTP<span className="text-brand-orange">link</span>
               </p>
               <p className="text-sm text-brand-gray-400">
-                AI-Powered Freight Platform
+              운송차주를 위한 STTP LINK
               </p>
             </div>
           </div>
@@ -39,8 +39,8 @@ export function Footer() {
           </nav>
         </div>
         <div className="mt-8 text-sm text-brand-gray-400">
-  <p className="font-semibold text-brand-white">운영자: 김영진</p>
-  <p className="mt-1">STTPLINK 운송 매칭 서비스</p>
+  <p className="font-semibold text-brand-white">운영자:6281</p>
+  <p className="mt-1">광양항 운송차주 커뮤니티</p>
 
   <p className="mt-1">문의: sttplink@gmail.com</p>
 

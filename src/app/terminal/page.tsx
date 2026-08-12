@@ -73,7 +73,11 @@ export default function TerminalPage() {
       });
 
       const data = await res.json();
-      setGwctInfo(data);
+setGwctInfo(data);
+
+if (data?.hasInfo) {
+  setTerminalPolling(false);
+}
     } catch (error) {
       console.error("GWCT 조회 실패:", error);
     }
@@ -96,7 +100,11 @@ export default function TerminalPage() {
       });
 
       const data = await res.json();
-      setKitlInfo(data);
+setKitlInfo(data);
+
+if (data?.hasInfo) {
+  setTerminalPolling(false);
+}
     } catch (error) {
       console.error("KITL 조회 실패:", error);
     }
@@ -111,7 +119,7 @@ export default function TerminalPage() {
     const timer = setInterval(() => {
       checkGwct();
       checkKitl();
-    }, 60000);
+    }, 30000);
 
     return () => clearInterval(timer);
   }, [terminalPolling, vehicleNumber]);
@@ -123,7 +131,16 @@ export default function TerminalPage() {
   return (
     <main className="min-h-screen bg-black px-4 py-8 text-white">
       <div className="mx-auto max-w-xl">
-        <h1 className="text-2xl font-black">터미널 정보</h1>
+      <div className="flex items-center justify-between">
+  <h1 className="text-2xl font-black">터미널 정보</h1>
+
+  <a
+    href="/"
+    className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold"
+  >
+    홈
+  </a>
+</div>
 
         <div className="mt-2 text-sm text-zinc-400">
           {loadingVehicle
