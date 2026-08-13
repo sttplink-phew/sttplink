@@ -113,7 +113,7 @@ function DatePickerField({
           min={min}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-14 w-full min-w-0 max-w-full rounded-xl border border-zinc-200 bg-white px-4 pr-12 font-bold text-zinc-900 outline-none transition focus:border-orange-500"
+          className="block h-14 w-full min-w-0 max-w-full appearance-none rounded-xl border border-zinc-200 bg-white px-4 pr-12 font-bold text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
         />
 
         <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xl">
@@ -177,22 +177,6 @@ export default function HomePage() {
   const [todayFull, setTodayFull] = useState(0);
   const [todayEmpty, setTodayEmpty] = useState(0);
   
-  const [monthFull, setMonthFull] = useState(0);
-  const [monthEmpty, setMonthEmpty] = useState(0);
-  const [monthRouteSummary, setMonthRouteSummary] = useState<
-  Record<
-    string,
-    {
-      title: string;
-      full20: number;
-      full40: number;
-      fullOther: number;
-      empty20: number;
-      empty40: number;
-      emptyOther: number;
-    }
-  >
->({});
   const [openOrderCount, setOpenOrderCount] = useState(0);
   const [monthOrderCount, setMonthOrderCount] = useState(0);
   const selectedCargo = useMemo(
@@ -231,7 +215,6 @@ export default function HomePage() {
         setTruckInfo(info);
       }
   
-      {loggedIn ? "운행 현황" : "오늘 운행"}
       const { data: todayLog } = await supabase
   .from("daily_route_logs")
   .select("route_logs")
@@ -284,95 +267,6 @@ if (todayLog?.route_logs) {
   .gte("created_at", `${monthStart}T00:00:00`);
 
 setMonthOrderCount(monthCount ?? 0);
-  
-const { data: routeRows } = await supabase
-  .from("driver_routes")
-  .select("id, title")
-  .eq("user_id", user.id)
-  .eq("is_active", true);
-
-const routeTitleMap = new Map(
-  (routeRows ?? []).map((route) => [route.id, route.title])
-);
-
-const { data: monthLogs } = await supabase
-  .from("daily_route_logs")
-  .select("route_logs")
-  .eq("user_id", user.id)
-  .gte("work_date", monthStart);
-
-if (monthLogs) {
-  let full = 0;
-  let empty = 0;
-
-  const summary: Record<
-  string,
-  {
-    title: string;
-    full20: number;
-    full40: number;
-    fullOther: number;
-    empty20: number;
-    empty40: number;
-    emptyOther: number;
-  }
-> = {};
-
-  monthLogs.forEach((row) => {
-    const logs = row.route_logs as Record<
-      string,
-      {
-        full20?: number;
-        full40?: number;
-        fullOther?: number;
-        empty20?: number;
-        empty40?: number;
-        emptyOther?: number;
-      }
-    >;
-
-    Object.entries(logs ?? {}).forEach(([routeId, log]) => {
-      const routeFull =
-        (log.full20 ?? 0) +
-        (log.full40 ?? 0) +
-        (log.fullOther ?? 0);
-
-      const routeEmpty =
-        (log.empty20 ?? 0) +
-        (log.empty40 ?? 0) +
-        (log.emptyOther ?? 0);
-
-      full += routeFull;
-      empty += routeEmpty;
-
-      const routeTitle = routeTitleMap.get(routeId) ?? "노선";
-
-      if (!summary[routeTitle]) {
-        summary[routeTitle] = {
-          title: routeTitle,
-          full20: 0,
-          full40: 0,
-          fullOther: 0,
-          empty20: 0,
-          empty40: 0,
-          emptyOther: 0,
-        };
-      }
-      
-      summary[routeTitle].full20 += log.full20 ?? 0;
-      summary[routeTitle].full40 += log.full40 ?? 0;
-      summary[routeTitle].fullOther += log.fullOther ?? 0;
-      
-      summary[routeTitle].empty20 += log.empty20 ?? 0;
-      summary[routeTitle].empty40 += log.empty40 ?? 0;
-      summary[routeTitle].emptyOther += log.emptyOther ?? 0;
-    });
-  });
-
-  setMonthFull(full);
-  setMonthEmpty(empty);
-  setMonthRouteSummary(summary);
-}
   
       // 현재 알바
       const { count } = await supabase
@@ -431,17 +325,74 @@ if (monthLogs) {
     }
   }
   useEffect(() => {
+    if (!loggedIn || !vehicleNumber) return;
+
+    setTerminalPolling(true);
+  }, [loggedIn, vehicleNumber]);
+
+  useEffect(() => {
     if (!terminalPolling) return;
-  
-    checkGwct();
-    checkKitl();
-    
+
+    let cancelled = false;
+
+    async function checkBothTerminals() {
+      if (!vehicleNumber) return;
+
+      const truckNo = vehicleNumber.slice(-4);
+
+      if (!/^\d{4}$/.test(truckNo)) return;
+
+      try {
+        const [gwctRes, kitlRes] = await Promise.all([
+          fetch("/api/terminal/gwct", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ truckNo }),
+          }),
+          fetch("/api/terminal/kitl", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ truckNo }),
+          }),
+        ]);
+
+        const [gwctData, kitlData] = await Promise.all([
+          gwctRes.json(),
+          kitlRes.json(),
+        ]);
+
+        if (cancelled) return;
+
+        setGwctInfo(gwctData);
+        setKitlInfo(kitlData);
+
+        const hasAnyTerminalInfo =
+          Boolean(gwctData?.hasInfo) ||
+          Boolean(kitlData?.hasInfo) ||
+          Boolean(kitlData?.hasAnyInfo);
+
+        if (hasAnyTerminalInfo) {
+          setTerminalPolling(false);
+        }
+      } catch (error) {
+        console.error("터미널 통합 조회 실패:", error);
+      }
+    }
+
+    checkBothTerminals();
+
     const timer = setInterval(() => {
-      checkGwct();
-      checkKitl();
-    }, 60000);
-  
-    return () => clearInterval(timer);
+      checkBothTerminals();
+    }, 30000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, [terminalPolling, vehicleNumber]);
     const canGoNext = Boolean(
     cargoType &&
@@ -587,17 +538,17 @@ if (monthLogs) {
       <Header />
 
       <main
-        className="min-h-screen bg-cover bg-center bg-no-repeat text-white"
+        className="min-h-screen overflow-x-hidden bg-zinc-950 bg-cover bg-center bg-no-repeat text-white"
         style={{
           backgroundImage: "url('/hero-truck.png')",
         }}
       >
-        <section className="relative overflow-hidden px-4 pb-24 pt-28 sm:px-6 lg:px-8">
+        <section className="relative overflow-hidden px-4 pb-20 pt-24 sm:px-6 sm:pt-28 lg:px-8">
           <div className="absolute inset-0 bg-black/70" />
 
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(234,88,12,0.20),transparent_38%)]" />
 
-          <div className="relative mx-auto max-w-7xl">
+          <div className="relative mx-auto w-full max-w-6xl">
     
           <section className="mb-6 rounded-2xl border border-white/10 bg-zinc-950/80 p-4">
   <div className="mb-3 flex items-center justify-between">
@@ -664,64 +615,23 @@ if (monthLogs) {
                   <div className="text-3xl">📊</div>
 
                   <div className="mt-3 text-lg font-bold">
-                  {loggedIn ? "운행 현황" : "오늘 운행"}
+                    운행일지
                   </div>
 
                   <div className="mt-1 space-y-1 text-sm text-zinc-400">
-                  {loggedIn ? (
-  Object.values(monthRouteSummary).length > 0 ? (
-    Object.values(monthRouteSummary).map((route) => {
-      const full =
-        route.full20 + route.full40 + route.fullOther;
-
-      const empty =
-        route.empty20 + route.empty40 + route.emptyOther;
-
-      return (
-        <div key={route.title}>
-          <span className="font-bold text-white">
-            {route.title}
-          </span>
-
-          {full > 0 && (
-            <span>
-              {" "}· F {full}
-              {" ("}
-              {route.full20 > 0 && `20:${route.full20}`}
-              {route.full20 > 0 && route.full40 > 0 && " / "}
-              {route.full40 > 0 && `40:${route.full40}`}
-              {(route.full20 > 0 || route.full40 > 0) &&
-                route.fullOther > 0 &&
-                " / "}
-              {route.fullOther > 0 && `기타:${route.fullOther}`}
-              {")"}
-            </span>
-          )}
-
-          {empty > 0 && (
-            <span>
-              {" "}· E {empty}
-              {" ("}
-              {route.empty20 > 0 && `20:${route.empty20}`}
-              {route.empty20 > 0 && route.empty40 > 0 && " / "}
-              {route.empty40 > 0 && `40:${route.empty40}`}
-              {(route.empty20 > 0 || route.empty40 > 0) &&
-                route.emptyOther > 0 &&
-                " / "}
-              {route.emptyOther > 0 && `기타:${route.emptyOther}`}
-              {")"}
-            </span>
-          )}
-        </div>
-      );
-    })
-  ) : (
-    <div>이번 달 운행 기록 없음</div>
-  )
-) : (
-  <div>오늘 회전수 기록</div>
-)}
-</div>
+                    {loggedIn ? (
+                      todayFull > 0 || todayEmpty > 0 ? (
+                        <>
+                          <div>오늘 FULL {todayFull}회</div>
+                          <div>오늘 EMPTY {todayEmpty}회</div>
+                        </>
+                      ) : (
+                        <div>오늘 운행기록 없음</div>
+                      )
+                    ) : (
+                      <div>오늘 운행을 기록하세요</div>
+                    )}
+                  </div>
                 </Link>
 
                 <Link
@@ -784,7 +694,7 @@ if (monthLogs) {
                   <div className="text-3xl">🔧</div>
 
                   <div className="mt-3 text-lg font-bold">
-                    차량 관리
+                    차량정비
                   </div>
 
                   <div className="mt-1 text-sm text-zinc-400">
@@ -793,21 +703,18 @@ if (monthLogs) {
   : "고장 · 수리 · 정비업체"}
                   </div>
                   </Link>
-
                 <Link
-                  href="/orders"
+                  href="/inspection"
                   className="rounded-2xl border border-white/10 bg-zinc-900 p-5 text-left transition hover:border-orange-500"
                 >
-                  <div className="text-3xl">🚛</div>
+                  <div className="text-3xl">✅</div>
 
                   <div className="mt-3 text-lg font-bold">
-                    알바 찾기
+                    차량 일일점검표
                   </div>
 
                   <div className="mt-1 text-sm text-zinc-400">
-                  {loggedIn
-  ? `현재 알바 ${openOrderCount}건`
-  : "남는 시간 일거리 찾기"}
+                    월간 체크 · 점검표 생성 · 전송
                   </div>
                 </Link>
                 <button
@@ -870,20 +777,31 @@ if (monthLogs) {
                     컨테이너 종류
                   </p>
 
-                  <div className="space-y-4">
-  <button
-    type="button"
-    className="w-full rounded-2xl border border-zinc-200 bg-white p-4 text-left font-black text-zinc-900 hover:border-orange-300"
-  >
-    노선1 TEST
-  </button>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {cargoItems.map((item) => {
+                      const selected = cargoType === item.id;
 
-  <input
-    type="text"
-    placeholder="노선 제목 입력"
-    className="w-full rounded-2xl border border-zinc-200 bg-white p-4 text-base outline-none focus:border-orange-500"
-  />
-</div>
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => selectCargo(item.id)}
+                          className={`min-h-[92px] rounded-2xl border p-4 text-left transition ${
+                            selected
+                              ? "border-orange-500 bg-orange-50 ring-2 ring-orange-100"
+                              : "border-zinc-200 bg-white hover:border-orange-300"
+                          }`}
+                        >
+                          <div className={selected ? "font-black text-orange-700" : "font-black text-zinc-900"}>
+                            {item.title}
+                          </div>
+                          <div className="mt-1 text-xs leading-5 text-zinc-500">
+                            {item.description}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* 상차 */}
