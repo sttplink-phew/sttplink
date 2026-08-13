@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
 import { createClient } from "@/utils/supabase/client";
 
 type MaintenanceLog = {
@@ -17,17 +19,32 @@ type MaintenanceLog = {
   details: string;
   cost: number | null;
   is_shared: boolean;
+  title: string | null;
+  fault_code: string | null;
+  symptoms: string | null;
+  repair_result: string | null;
+  repair_region: string | null;
+  created_at?: string | null;
+};
+
+type MaintenanceComment = {
+  id: number;
+  log_id: number;
+  user_id: string;
+  body: string;
+  created_at: string;
 };
 
 const categories = [
   "엔진",
   "미션",
-  "브레이크",
-  "타이어",
-  "전기",
-  "요소수·배기",
+  "DPF·요소수",
+  "전기·센서",
+  "하체·브레이크",
   "냉각계통",
   "에어·서스펜션",
+  "에어컨",
+  "타이어",
   "오일·소모품",
   "기타",
 ];
@@ -39,13 +56,21 @@ function todayValue() {
 }
 
 function money(value: number | null) {
-  if (value === null) return "비용 미기입";
-  return `${value.toLocaleString("ko-KR")}원`;
+  if (value === null || value === undefined) return "비용 미기입";
+  return `${Number(value).toLocaleString("ko-KR")}원`;
 }
 
 function mileageText(value: number | null) {
-  if (value === null) return "주행거리 미기입";
-  return `${value.toLocaleString("ko-KR")} km`;
+  if (value === null || value === undefined) return "주행거리 미기입";
+  return `${Number(value).toLocaleString("ko-KR")} km`;
+}
+
+function normalize(text: string | null | undefined) {
+  return (text ?? "").toLowerCase().replace(/\s+/g, "");
+}
+
+function displayTitle(log: MaintenanceLog) {
+  return log.title?.trim() || log.details.trim().split("\n")[0] || "정비 사례";
 }
 
 export default function MaintenancePage() {
@@ -53,15 +78,21 @@ export default function MaintenancePage() {
   const supabase = useMemo(() => createClient(), []);
 
   const [userId, setUserId] = useState("");
+  const [vehicleNumber, setVehicleNumber] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [myLogs, setMyLogs] = useState<MaintenanceLog[]>([]);
-  const [sharedLogs, setSharedLogs] = useState<MaintenanceLog[]>([]);
+  const [logs, setLogs] = useState<MaintenanceLog[]>([]);
+  const [comments, setComments] = useState<MaintenanceComment[]>([]);
+
+  const [scope, setScope] = useState<"all" | "mine">("all");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [selectedLog, setSelectedLog] = useState<MaintenanceLog | null>(null);
+  const [commentBody, setCommentBody] = useState("");
+  const [commentSaving, setCommentSaving] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
-  const [tab, setTab] = useState<"mine" | "shared">("mine");
-
   const [date, setDate] = useState(todayValue());
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
@@ -69,14 +100,13 @@ export default function MaintenancePage() {
   const [mileage, setMileage] = useState("");
   const [shopName, setShopName] = useState("");
   const [category, setCategory] = useState("");
+  const [title, setTitle] = useState("");
+  const [faultCode, setFaultCode] = useState("");
+  const [symptoms, setSymptoms] = useState("");
   const [details, setDetails] = useState("");
+  const [repairResult, setRepairResult] = useState("");
+  const [repairRegion, setRepairRegion] = useState("");
   const [cost, setCost] = useState("");
-  const [isShared, setIsShared] = useState(true);
-
-  const [searchBrand, setSearchBrand] = useState("");
-  const [searchModel, setSearchModel] = useState("");
-  const [searchCategory, setSearchCategory] = useState("");
-  const [keyword, setKeyword] = useState("");
 
   useEffect(() => {
     async function initialize() {
@@ -91,91 +121,104 @@ export default function MaintenancePage() {
 
       setUserId(user.id);
 
-      // 내 차량정보를 정비등록 기본값으로 사용
       const { data: driver } = await supabase
         .from("drivers")
-        .select("truck_brand, truck_model, truck_year")
+        .select("vehicle_number, truck_brand, truck_model, truck_year")
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (driver) {
-        const driverBrand = driver.truck_brand ?? "";
-        const driverModel = driver.truck_model ?? "";
-
-        setBrand(driverBrand);
-        setModel(driverModel);
-
-        if (driver.truck_year) {
-          setYear(String(driver.truck_year));
-        }
-
-        // 공유사례도 처음에는 내 차종 기준
-        setSearchBrand(driverBrand);
-        setSearchModel(driverModel);
+        setVehicleNumber(driver.vehicle_number ?? "");
+        setBrand(driver.truck_brand ?? "");
+        setModel(driver.truck_model ?? "");
+        if (driver.truck_year) setYear(String(driver.truck_year));
       }
 
-      await loadMyLogs(user.id);
-      await loadSharedLogs();
-
+      await Promise.all([loadLogs(user.id), loadComments()]);
       setLoading(false);
     }
 
     initialize();
   }, [router, supabase]);
 
-  async function loadMyLogs(id = userId) {
-    if (!id) return;
-
+  async function loadLogs(currentUserId = userId) {
     const { data, error } = await supabase
       .from("maintenance_logs")
-      .select("*")
-      .eq("user_id", id)
-      .order("maintenance_date", { ascending: false });
+      .select(
+        "id, user_id, maintenance_date, truck_brand, truck_model, truck_year, mileage, shop_name, category, details, cost, is_shared, title, fault_code, symptoms, repair_result, repair_region, created_at"
+      )
+      .or(`is_shared.eq.true,user_id.eq.${currentUserId}`)
+      .order("maintenance_date", { ascending: false })
+      .order("id", { ascending: false });
 
     if (error) {
-      alert(`정비기록 조회 오류\n${error.message}`);
+      alert(`차량정비 게시판 조회 오류\n${error.message}`);
       return;
     }
 
-    setMyLogs((data ?? []) as MaintenanceLog[]);
+    setLogs((data ?? []) as MaintenanceLog[]);
   }
-  async function deleteMaintenanceLog(id: number) {
-    const ok = window.confirm("이 정비기록을 삭제하시겠습니까?");
-    if (!ok) return;
-  
-    const { error } = await supabase
-      .from("maintenance_logs")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", userId);
-  
-    if (error) {
-      alert(`삭제 오류\n${error.message}`);
-      return;
-    }
-  
-    await loadMyLogs(userId);
-  }
-  async function loadSharedLogs() {
+
+  async function loadComments() {
     const { data, error } = await supabase
-      .from("maintenance_logs")
-      .select("*")
-      .eq("is_shared", true)
-      .order("maintenance_date", { ascending: false });
+      .from("maintenance_comments")
+      .select("id, log_id, user_id, body, created_at")
+      .order("created_at", { ascending: true });
 
     if (error) {
-      alert(`공유사례 조회 오류\n${error.message}`);
+      console.error("댓글 조회 오류:", error);
       return;
     }
 
-    setSharedLogs((data ?? []) as MaintenanceLog[]);
+    setComments((data ?? []) as MaintenanceComment[]);
   }
 
-  async function saveMaintenance() {
+  const filteredLogs = logs.filter((log) => {
+    if (scope === "mine" && log.user_id !== userId) return false;
+    if (scope === "all" && !log.is_shared && log.user_id !== userId) return false;
+
+    if (selectedCategory && log.category !== selectedCategory) return false;
+
+    const haystack = normalize(
+      [
+        log.title,
+        log.fault_code,
+        log.symptoms,
+        log.details,
+        log.repair_result,
+        log.repair_region,
+        log.shop_name,
+        log.category,
+        log.truck_brand,
+        log.truck_model,
+        log.truck_year ? String(log.truck_year) : "",
+      ]
+        .filter(Boolean)
+        .join(" ")
+    );
+
+    return !keyword || haystack.includes(normalize(keyword));
+  });
+
+  function resetForm() {
+    setDate(todayValue());
+    setMileage("");
+    setShopName("");
+    setCategory("");
+    setTitle("");
+    setFaultCode("");
+    setSymptoms("");
+    setDetails("");
+    setRepairResult("");
+    setRepairRegion("");
+    setCost("");
+  }
+
+  async function savePost() {
     if (!userId) return;
 
-    if (!date) {
-      alert("정비 날짜를 선택해주세요.");
+    if (!title.trim()) {
+      alert("게시글 제목을 입력해주세요.");
       return;
     }
 
@@ -188,271 +231,399 @@ export default function MaintenancePage() {
 
     const { error } = await supabase.from("maintenance_logs").insert({
       user_id: userId,
-      maintenance_date: date,
+      maintenance_date: date || todayValue(),
       truck_brand: brand.trim() || null,
       truck_model: model.trim() || null,
       truck_year: year ? Number(year) : null,
       mileage: mileage ? Number(mileage.replace(/,/g, "")) : null,
       shop_name: shopName.trim() || null,
-      category: category || null,
+      category: category || "기타",
       details: details.trim(),
       cost: cost ? Number(cost.replace(/,/g, "")) : null,
-      is_shared: isShared,
+      is_shared: true,
+      title: title.trim(),
+      fault_code: faultCode.trim() || null,
+      symptoms: symptoms.trim() || null,
+      repair_result: repairResult.trim() || null,
+      repair_region: repairRegion.trim() || null,
     });
 
     setSaving(false);
 
     if (error) {
-      alert(`정비기록 저장 실패\n${error.message}`);
+      alert(`정비사례 등록 실패\n${error.message}`);
       return;
     }
 
-    alert("정비기록이 저장되었습니다.");
-
-    setDate(todayValue());
-    setMileage("");
-    setShopName("");
-    setCategory("");
-    setDetails("");
-    setCost("");
-    setIsShared(true);
+    resetForm();
     setShowForm(false);
-
-    await loadMyLogs(userId);
-    await loadSharedLogs();
+    await loadLogs(userId);
   }
 
-  const filteredSharedLogs = sharedLogs.filter((log) => {
-    const brandMatch =
-      !searchBrand ||
-      (log.truck_brand ?? "")
-        .toLowerCase()
-        .includes(searchBrand.toLowerCase());
+  async function deletePost(log: MaintenanceLog) {
+    if (log.user_id !== userId) return;
 
-    const modelMatch =
-      !searchModel ||
-      (log.truck_model ?? "")
-        .toLowerCase()
-        .includes(searchModel.toLowerCase());
+    const ok = window.confirm("이 정비사례를 삭제할까요?");
+    if (!ok) return;
 
-    const categoryMatch =
-      !searchCategory || log.category === searchCategory;
+    const { error } = await supabase
+      .from("maintenance_logs")
+      .delete()
+      .eq("id", log.id)
+      .eq("user_id", userId);
 
-    const keywordText = [
-      log.details,
-      log.shop_name,
-      log.category,
-      log.truck_brand,
-      log.truck_model,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
+    if (error) {
+      alert(`삭제 오류\n${error.message}`);
+      return;
+    }
 
-    const keywordMatch =
-      !keyword || keywordText.includes(keyword.toLowerCase());
+    if (selectedLog?.id === log.id) setSelectedLog(null);
+    await Promise.all([loadLogs(userId), loadComments()]);
+  }
 
-    return brandMatch && modelMatch && categoryMatch && keywordMatch;
-  });
+  async function saveComment() {
+    if (!userId || !selectedLog || !commentBody.trim()) return;
+
+    setCommentSaving(true);
+
+    const { error } = await supabase.from("maintenance_comments").insert({
+      log_id: selectedLog.id,
+      user_id: userId,
+      body: commentBody.trim(),
+    });
+
+    setCommentSaving(false);
+
+    if (error) {
+      alert(`댓글 등록 실패\n${error.message}`);
+      return;
+    }
+
+    setCommentBody("");
+    await loadComments();
+  }
+
+  async function deleteComment(comment: MaintenanceComment) {
+    if (comment.user_id !== userId) return;
+
+    const ok = window.confirm("댓글을 삭제할까요?");
+    if (!ok) return;
+
+    const { error } = await supabase
+      .from("maintenance_comments")
+      .delete()
+      .eq("id", comment.id)
+      .eq("user_id", userId);
+
+    if (error) {
+      alert(`댓글 삭제 실패\n${error.message}`);
+      return;
+    }
+
+    await loadComments();
+  }
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#080808] px-5 pt-24 text-white">
-        차량 정보를 불러오는 중...
-      </main>
+      <>
+        <Header />
+        <main className="flex min-h-screen items-center justify-center bg-[#080808] text-white">
+          차량정비 게시판을 불러오는 중...
+        </main>
+      </>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#080808] px-4 pb-24 pt-8 text-white sm:px-6">
-      <div className="mx-auto max-w-5xl">
-        {/* 상단 */}
-        <div className="mb-7 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold text-orange-500">MORE 광양</p>
+    <>
+      <Header />
 
-            <h1 className="mt-2 text-3xl font-black">
-              차량 관리
-            </h1>
-
-            <p className="mt-2 text-sm leading-6 text-zinc-400">
-              내 정비기록을 관리하고 다른 차주의 실제 정비사례를 확인하세요.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => router.push("/")}
-            className="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-zinc-300"
-          >
-            홈
-          </button>
-        </div>
-
-        {/* 정비 등록 버튼 */}
-        <button
-          type="button"
-          onClick={() => setShowForm(true)}
-          className="mb-6 w-full rounded-2xl bg-orange-600 px-5 py-4 text-lg font-black transition hover:bg-orange-500"
-        >
-          + 정비 기록 등록
-        </button>
-
-        {/* 탭 */}
-        <div className="mb-6 grid grid-cols-2 rounded-2xl bg-zinc-900 p-1">
-          <button
-            type="button"
-            onClick={() => setTab("mine")}
-            className={`rounded-xl px-3 py-3 text-sm font-bold ${
-              tab === "mine"
-                ? "bg-white text-black"
-                : "text-zinc-400"
-            }`}
-          >
-            내 정비기록 {myLogs.length}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setTab("shared")}
-            className={`rounded-xl px-3 py-3 text-sm font-bold ${
-              tab === "shared"
-                ? "bg-white text-black"
-                : "text-zinc-400"
-            }`}
-          >
-            공유 정비사례
-          </button>
-        </div>
-
-        {/* 내 기록 */}
-        {tab === "mine" && (
-          <section>
-            {myLogs.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-zinc-900 p-8 text-center">
-                <p className="font-bold">아직 정비기록이 없습니다.</p>
-                <p className="mt-2 text-sm text-zinc-500">
-                  첫 정비기록을 등록해보세요.
+      <main className="min-h-screen overflow-x-hidden bg-[#080808] px-4 pb-24 pt-24 text-white sm:px-6">
+        <div className="mx-auto w-full max-w-3xl">
+          <section className="rounded-3xl border border-white/10 bg-zinc-900 p-4 shadow-xl sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-black tracking-[0.14em] text-orange-500">
+                  STTP LINK
+                </p>
+                <h1 className="mt-1 text-2xl font-black sm:text-3xl">
+                  차량정비
+                </h1>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">
+                  차주들이 직접 겪은 고장 · 수리 · 부품교체 사례를 공유합니다.
                 </p>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {myLogs.map((log) => (
-                  <MaintenanceCard
-                  key={log.id}
-                  log={log}
-                  onDelete={deleteMaintenanceLog}
-                />
-                ))}
+
+              <button
+                type="button"
+                onClick={() => router.push("/")}
+                className="shrink-0 rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-zinc-300"
+              >
+                홈
+              </button>
+            </div>
+
+            {vehicleNumber && (
+              <div className="mt-4 inline-flex rounded-lg bg-black px-3 py-2 text-xs font-bold text-zinc-400">
+                내 차량 · {vehicleNumber}
               </div>
             )}
           </section>
-        )}
 
-        {/* 공유사례 */}
-        {tab === "shared" && (
-          <section>
-            <div className="mb-5 rounded-2xl border border-white/10 bg-zinc-900 p-4">
-              <p className="mb-4 font-black">
-                정비사례 검색
-              </p>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <input
-                  value={searchBrand}
-                  onChange={(e) => setSearchBrand(e.target.value)}
-                  placeholder="제조사 예: 벤츠"
-                  className="h-12 rounded-xl border border-white/10 bg-black px-4 text-sm outline-none focus:border-orange-500"
-                />
-
-                <input
-                  value={searchModel}
-                  onChange={(e) => setSearchModel(e.target.value)}
-                  placeholder="모델 예: 2646"
-                  className="h-12 rounded-xl border border-white/10 bg-black px-4 text-sm outline-none focus:border-orange-500"
-                />
-
-                <select
-                  value={searchCategory}
-                  onChange={(e) => setSearchCategory(e.target.value)}
-                  className="h-12 rounded-xl border border-white/10 bg-black px-4 text-sm outline-none focus:border-orange-500"
-                >
-                  <option value="">전체 정비분류</option>
-                  {categories.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-
+          <section className="mt-3 rounded-3xl border border-white/10 bg-zinc-900 p-4 shadow-xl">
+            <div className="flex gap-2">
+              <div className="relative min-w-0 flex-1">
                 <input
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
-                  placeholder="터보, DPF, 미션 등 검색"
-                  className="h-12 rounded-xl border border-white/10 bg-black px-4 text-sm outline-none focus:border-orange-500"
+                  placeholder="고장코드 · 증상 · 부품 · 차종 검색"
+                  className="h-12 w-full min-w-0 rounded-xl border border-white/10 bg-black px-4 pr-10 text-sm outline-none focus:border-orange-500"
                 />
-              </div>
-
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-sm text-zinc-400">
-                  검색 결과
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500">
+                  ⌕
                 </span>
-
-                <strong className="text-xl text-orange-500">
-                  {filteredSharedLogs.length}건
-                </strong>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setShowForm(true)}
+                className="shrink-0 rounded-xl bg-orange-600 px-4 text-sm font-black text-white"
+              >
+                글쓰기
+              </button>
             </div>
 
-            {filteredSharedLogs.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 p-8 text-center text-zinc-500">
-                조건에 맞는 공유 정비사례가 없습니다.
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              <button
+                type="button"
+                onClick={() => setSelectedCategory("")}
+                className={`shrink-0 rounded-full px-3 py-2 text-xs font-bold ${
+                  selectedCategory === ""
+                    ? "bg-white text-black"
+                    : "bg-zinc-800 text-zinc-400"
+                }`}
+              >
+                전체
+              </button>
+
+              {categories.map((item) => (
+                <button
+                  type="button"
+                  key={item}
+                  onClick={() => setSelectedCategory(item)}
+                  className={`shrink-0 rounded-full px-3 py-2 text-xs font-bold ${
+                    selectedCategory === item
+                      ? "bg-white text-black"
+                      : "bg-zinc-800 text-zinc-400"
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 rounded-xl bg-black p-1">
+              <button
+                type="button"
+                onClick={() => setScope("all")}
+                className={`rounded-lg py-2.5 text-sm font-bold ${
+                  scope === "all"
+                    ? "bg-zinc-800 text-white"
+                    : "text-zinc-500"
+                }`}
+              >
+                전체 사례
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setScope("mine")}
+                className={`rounded-lg py-2.5 text-sm font-bold ${
+                  scope === "mine"
+                    ? "bg-zinc-800 text-white"
+                    : "text-zinc-500"
+                }`}
+              >
+                내 정비기록
+              </button>
+            </div>
+          </section>
+
+          <div className="mt-3 flex items-center justify-between px-1">
+            <p className="text-sm font-bold text-zinc-400">
+              {scope === "mine" ? "내가 등록한 사례" : "차주 정비사례"}
+            </p>
+            <strong className="text-sm text-orange-500">
+              {filteredLogs.length}건
+            </strong>
+          </div>
+
+          <section className="mt-2 space-y-2">
+            {filteredLogs.length === 0 ? (
+              <div className="rounded-3xl border border-white/10 bg-zinc-900 p-8 text-center">
+                <p className="font-bold text-zinc-300">
+                  조건에 맞는 정비사례가 없습니다.
+                </p>
+                <p className="mt-2 text-sm text-zinc-500">
+                  직접 겪은 사례를 첫 글로 등록해보세요.
+                </p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {filteredSharedLogs.map((log) => (
-                  <MaintenanceCard
+              filteredLogs.map((log) => {
+                const commentCount = comments.filter(
+                  (comment) => comment.log_id === log.id
+                ).length;
+
+                return (
+                  <button
+                    type="button"
                     key={log.id}
-                    log={log}
-                  />
-                ))}
-              </div>
+                    onClick={() => setSelectedLog(log)}
+                    className="w-full rounded-2xl border border-white/10 bg-zinc-900 p-4 text-left transition active:bg-zinc-800"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-md bg-orange-500/10 px-2 py-1 text-[11px] font-black text-orange-400">
+                            {log.category || "정비"}
+                          </span>
+
+                          {log.fault_code && (
+                            <span className="rounded-md bg-red-500/10 px-2 py-1 text-[11px] font-black text-red-300">
+                              {log.fault_code}
+                            </span>
+                          )}
+                        </div>
+
+                        <h2 className="mt-2 line-clamp-2 text-base font-black leading-6">
+                          {displayTitle(log)}
+                        </h2>
+                      </div>
+
+                      <span className="shrink-0 text-[11px] text-zinc-600">
+                        {log.maintenance_date}
+                      </span>
+                    </div>
+
+                    {(log.symptoms || log.details) && (
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-zinc-400">
+                        {log.symptoms || log.details}
+                      </p>
+                    )}
+
+                    <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-zinc-500">
+                      {(log.truck_brand || log.truck_model) && (
+                        <span>
+                          {[log.truck_brand, log.truck_model]
+                            .filter(Boolean)
+                            .join(" ")}
+                          {log.truck_year ? ` · ${log.truck_year}` : ""}
+                        </span>
+                      )}
+
+                      {log.repair_region && <span>{log.repair_region}</span>}
+                      <span>{money(log.cost)}</span>
+                      <span>댓글 {commentCount}</span>
+                    </div>
+
+                    {log.user_id === userId && (
+                      <div className="mt-3 text-[11px] font-bold text-orange-400">
+                        내가 등록한 글
+                      </div>
+                    )}
+                  </button>
+                );
+              })
             )}
           </section>
-        )}
-      </div>
+        </div>
+      </main>
 
-      {/* 정비등록 팝업 */}
       {showForm && (
-        <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/80 px-4 py-6 backdrop-blur-sm">
-          <div className="mx-auto max-w-xl rounded-3xl bg-white p-5 text-zinc-900 shadow-2xl sm:p-7">
-            <div className="mb-6 flex items-center justify-between">
+        <div className="fixed inset-0 z-[120] overflow-y-auto bg-black/85 p-3 backdrop-blur-sm">
+          <div className="mx-auto my-4 w-full max-w-lg rounded-3xl bg-white p-4 text-zinc-900 shadow-2xl sm:p-6">
+            <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-bold text-orange-600">
-                  차량 관리
+                  차량정비 게시판
                 </p>
-
                 <h2 className="mt-1 text-2xl font-black">
-                  정비 기록
+                  정비사례 등록
                 </h2>
               </div>
 
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-100 text-xl font-bold"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xl font-black"
               >
                 ×
               </button>
             </div>
 
-            <div className="space-y-4">
-              <Field label="정비 날짜">
+            <div className="mt-5 space-y-4">
+              <Field label="제목 *">
                 <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="예: MCM 670610 냉각팬 관련 수리"
                   className="inputStyle"
+                />
+              </Field>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="분류">
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="inputStyle"
+                  >
+                    <option value="">선택</option>
+                    {categories.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="고장코드">
+                  <input
+                    value={faultCode}
+                    onChange={(e) => setFaultCode(e.target.value)}
+                    placeholder="예: 670610"
+                    className="inputStyle"
+                  />
+                </Field>
+              </div>
+
+              <Field label="증상">
+                <textarea
+                  value={symptoms}
+                  onChange={(e) => setSymptoms(e.target.value)}
+                  placeholder="어떤 증상이 있었는지 간단히 적어주세요."
+                  rows={3}
+                  className="textareaStyle"
+                />
+              </Field>
+
+              <Field label="정비 내용 *">
+                <textarea
+                  value={details}
+                  onChange={(e) => setDetails(e.target.value)}
+                  placeholder="점검한 내용, 교체한 부품, 정비 과정 등을 적어주세요."
+                  rows={5}
+                  className="textareaStyle"
+                />
+              </Field>
+
+              <Field label="정비 후 결과">
+                <textarea
+                  value={repairResult}
+                  onChange={(e) => setRepairResult(e.target.value)}
+                  placeholder="수리 후 증상이 해결됐는지 적어주세요."
+                  rows={3}
+                  className="textareaStyle"
                 />
               </Field>
 
@@ -487,7 +658,7 @@ export default function MaintenancePage() {
                   />
                 </Field>
 
-                <Field label="현재 주행거리">
+                <Field label="주행거리">
                   <input
                     inputMode="numeric"
                     value={mileage}
@@ -498,87 +669,217 @@ export default function MaintenancePage() {
                 </Field>
               </div>
 
-              <Field label="정비업체">
-                <input
-                  value={shopName}
-                  onChange={(e) => setShopName(e.target.value)}
-                  placeholder="정비업체명"
-                  className="inputStyle"
-                />
-              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="정비지역">
+                  <input
+                    value={repairRegion}
+                    onChange={(e) => setRepairRegion(e.target.value)}
+                    placeholder="예: 전주"
+                    className="inputStyle"
+                  />
+                </Field>
 
-              <Field label="정비 분류">
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="inputStyle"
-                >
-                  <option value="">선택</option>
+                <Field label="정비업체">
+                  <input
+                    value={shopName}
+                    onChange={(e) => setShopName(e.target.value)}
+                    placeholder="업체명"
+                    className="inputStyle"
+                  />
+                </Field>
+              </div>
 
-                  {categories.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="정비 날짜">
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="inputStyle"
+                  />
+                </Field>
 
-              <Field label="정비 내용">
-                <textarea
-                  value={details}
-                  onChange={(e) => setDetails(e.target.value)}
-                  placeholder="예: 터보 액추에이터 교체"
-                  rows={4}
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm outline-none focus:border-orange-500"
-                />
-              </Field>
+                <Field label="비용">
+                  <input
+                    inputMode="numeric"
+                    value={cost}
+                    onChange={(e) =>
+                      setCost(e.target.value.replace(/[^0-9]/g, ""))
+                    }
+                    placeholder="480000"
+                    className="inputStyle"
+                  />
+                </Field>
+              </div>
 
-              <Field label="정비 비용">
-                <input
-                  inputMode="numeric"
-                  value={cost}
-                  onChange={(e) => setCost(e.target.value)}
-                  placeholder="480000"
-                  className="inputStyle"
-                />
-              </Field>
-
-              <label className="flex cursor-pointer gap-3 rounded-2xl bg-orange-50 p-4">
-                <input
-                  type="checkbox"
-                  checked={isShared}
-                  onChange={(e) => setIsShared(e.target.checked)}
-                  className="mt-1 h-5 w-5"
-                />
-
-                <div>
-                  <p className="font-black">
-                    다른 운송차주에게 정비사례 공유
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-zinc-500">
-                    차량번호와 사용자 정보는 공개하지 않습니다.
-                    차량·정비·비용 정보만 다른 차주의 참고자료로 공유됩니다.
-                  </p>
-                </div>
-              </label>
+              <div className="rounded-2xl bg-orange-50 p-4 text-xs leading-5 text-orange-800">
+                게시한 정비사례는 다른 운송차주가 검색하고 참고할 수 있습니다.
+                차량번호와 전화번호는 게시글에 표시하지 않습니다.
+              </div>
 
               <button
                 type="button"
                 disabled={saving}
-                onClick={saveMaintenance}
-                className="h-14 w-full rounded-xl bg-orange-600 text-base font-black text-white disabled:opacity-50"
+                onClick={savePost}
+                className="h-14 w-full rounded-xl bg-orange-600 text-base font-black text-white disabled:bg-zinc-300"
               >
-                {saving ? "저장 중..." : "정비기록 저장"}
+                {saving ? "등록 중..." : "정비사례 등록"}
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {selectedLog && (
+        <div className="fixed inset-0 z-[120] overflow-y-auto bg-black/90 p-3 backdrop-blur-sm">
+          <div className="mx-auto my-4 w-full max-w-lg rounded-3xl bg-zinc-950 p-4 text-white shadow-2xl sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap gap-2">
+                  <span className="rounded-md bg-orange-500/10 px-2 py-1 text-xs font-black text-orange-400">
+                    {selectedLog.category || "정비"}
+                  </span>
+                  {selectedLog.fault_code && (
+                    <span className="rounded-md bg-red-500/10 px-2 py-1 text-xs font-black text-red-300">
+                      {selectedLog.fault_code}
+                    </span>
+                  )}
+                </div>
+
+                <h2 className="mt-3 text-xl font-black leading-7">
+                  {displayTitle(selectedLog)}
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedLog(null)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xl font-black"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2 text-xs text-zinc-400">
+              {(selectedLog.truck_brand || selectedLog.truck_model) && (
+                <span className="rounded-lg bg-zinc-900 px-3 py-2">
+                  {[selectedLog.truck_brand, selectedLog.truck_model]
+                    .filter(Boolean)
+                    .join(" ")}
+                  {selectedLog.truck_year ? ` · ${selectedLog.truck_year}` : ""}
+                </span>
+              )}
+              <span className="rounded-lg bg-zinc-900 px-3 py-2">
+                {mileageText(selectedLog.mileage)}
+              </span>
+              <span className="rounded-lg bg-zinc-900 px-3 py-2">
+                {selectedLog.maintenance_date}
+              </span>
+            </div>
+
+            {selectedLog.symptoms && (
+              <DetailBlock label="증상" value={selectedLog.symptoms} />
+            )}
+
+            <DetailBlock label="정비 내용" value={selectedLog.details} />
+
+            {selectedLog.repair_result && (
+              <DetailBlock
+                label="정비 후 결과"
+                value={selectedLog.repair_result}
+              />
+            )}
+
+            <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+              <InfoBox label="정비지역" value={selectedLog.repair_region || "-"} />
+              <InfoBox label="정비업체" value={selectedLog.shop_name || "-"} />
+              <InfoBox label="정비비용" value={money(selectedLog.cost)} />
+              <InfoBox label="고장코드" value={selectedLog.fault_code || "-"} />
+            </div>
+
+            {selectedLog.user_id === userId && (
+              <button
+                type="button"
+                onClick={() => deletePost(selectedLog)}
+                className="mt-4 text-xs font-bold text-red-400"
+              >
+                이 글 삭제
+              </button>
+            )}
+
+            <section className="mt-6 border-t border-white/10 pt-5">
+              <div className="flex items-center justify-between">
+                <h3 className="font-black">댓글</h3>
+                <span className="text-sm text-zinc-500">
+                  {
+                    comments.filter(
+                      (comment) => comment.log_id === selectedLog.id
+                    ).length
+                  }
+                  개
+                </span>
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {comments
+                  .filter((comment) => comment.log_id === selectedLog.id)
+                  .map((comment) => (
+                    <div
+                      key={comment.id}
+                      className="rounded-xl bg-zinc-900 p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-300">
+                          {comment.body}
+                        </p>
+
+                        {comment.user_id === userId && (
+                          <button
+                            type="button"
+                            onClick={() => deleteComment(comment)}
+                            className="shrink-0 text-[11px] font-bold text-red-400"
+                          >
+                            삭제
+                          </button>
+                        )}
+                      </div>
+
+                      <p className="mt-2 text-[10px] text-zinc-600">
+                        {new Date(comment.created_at).toLocaleString("ko-KR")}
+                      </p>
+                    </div>
+                  ))}
+              </div>
+
+              <div className="mt-3 flex gap-2">
+                <textarea
+                  value={commentBody}
+                  onChange={(e) => setCommentBody(e.target.value)}
+                  rows={2}
+                  placeholder="정비 경험이나 도움이 되는 정보를 남겨주세요."
+                  className="min-w-0 flex-1 resize-none rounded-xl border border-white/10 bg-zinc-900 p-3 text-sm outline-none focus:border-orange-500"
+                />
+
+                <button
+                  type="button"
+                  disabled={commentSaving || !commentBody.trim()}
+                  onClick={saveComment}
+                  className="w-16 shrink-0 rounded-xl bg-orange-600 text-sm font-black disabled:bg-zinc-800 disabled:text-zinc-600"
+                >
+                  등록
+                </button>
+              </div>
+            </section>
+          </div>
+        </div>
+      )}
+
+      <Footer />
+
       <style jsx>{`
         .inputStyle {
           width: 100%;
+          min-width: 0;
           height: 48px;
           border: 1px solid #e4e4e7;
           border-radius: 12px;
@@ -588,11 +889,25 @@ export default function MaintenancePage() {
           outline: none;
         }
 
-        .inputStyle:focus {
+        .inputStyle:focus,
+        .textareaStyle:focus {
           border-color: #ea580c;
-        function MaintenanceCard}
+        }
+
+        .textareaStyle {
+          width: 100%;
+          min-width: 0;
+          resize: none;
+          border: 1px solid #e4e4e7;
+          border-radius: 12px;
+          background: #fafafa;
+          padding: 14px;
+          font-size: 14px;
+          line-height: 1.6;
+          outline: none;
+        }
       `}</style>
-    </main>
+    </>
   );
 }
 
@@ -604,85 +919,43 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <p className="mb-2 text-sm font-bold text-zinc-700">
+    <label className="block min-w-0">
+      <span className="mb-2 block text-sm font-bold text-zinc-700">
         {label}
-      </p>
-
+      </span>
       {children}
+    </label>
+  );
+}
+
+function DetailBlock({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="mt-4 rounded-2xl bg-zinc-900 p-4">
+      <p className="text-xs font-black text-orange-400">{label}</p>
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-zinc-300">
+        {value}
+      </p>
     </div>
   );
 }
 
-function MaintenanceCard({
-    log,
-    showShared = false,
-    onDelete,
-  }: {
-    log: MaintenanceLog;
-    showShared?: boolean;
-    onDelete?: (id: number) => void;
-  }) {
-
+function InfoBox({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
   return (
-    <article className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-bold text-orange-500">
-            {log.category || "정비"}
-          </p>
-
-          <h3 className="mt-2 text-lg font-black">
-            {log.details}
-          </h3>
-        </div>
-
-        <span className="shrink-0 text-xs text-zinc-500">
-  {log.maintenance_date}
-</span>
-
-{!showShared && onDelete && (
-  <button
-    type="button"
-    onClick={() => onDelete(log.id)}
-    className="shrink-0 text-xs font-bold text-red-400 hover:text-red-300"
-  >
-    삭제
-  </button>
-)}
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-2 text-xs">
-        {(log.truck_brand || log.truck_model) && (
-          <span className="rounded-lg bg-black px-3 py-2">
-            {[log.truck_brand, log.truck_model]
-              .filter(Boolean)
-              .join(" ")}
-          </span>
-        )}
-
-        <span className="rounded-lg bg-black px-3 py-2">
-          {mileageText(log.mileage)}
-        </span>
-
-        <span className="rounded-lg bg-black px-3 py-2 font-bold text-orange-400">
-          {money(log.cost)}
-        </span>
-      </div>
-
-      {log.shop_name && (
-        <p className="mt-4 text-sm text-zinc-400">
-          정비업체 · {log.shop_name}
-        </p>
-      )}
-
-      {showShared && (
-        <p className="mt-3 text-xs text-zinc-500">
-          {log.is_shared
-            ? "공유 중인 정비사례"
-            : "나만 보는 정비기록"}
-        </p>
-      )}
-    </article>
+    <div className="rounded-xl bg-zinc-900 p-3">
+      <p className="text-[11px] text-zinc-600">{label}</p>
+      <p className="mt-1 break-words font-bold text-zinc-300">{value}</p>
+    </div>
   );
 }

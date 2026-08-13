@@ -124,6 +124,13 @@ function DatePickerField({
   );
 }
 
+type CommunityPost = {
+  id: number;
+  category: string;
+  title: string;
+  created_at: string;
+};
+
 export default function HomePage() {
   const supabase = useMemo(() => createClient(), []);
 
@@ -179,6 +186,7 @@ export default function HomePage() {
   
   const [openOrderCount, setOpenOrderCount] = useState(0);
   const [monthOrderCount, setMonthOrderCount] = useState(0);
+  const [recentPosts, setRecentPosts] = useState<CommunityPost[]>([]);
   const selectedCargo = useMemo(
     () => cargoItems.find((item) => item.id === cargoType),
     [cargoType]
@@ -275,6 +283,20 @@ setMonthOrderCount(monthCount ?? 0);
         .eq("status", "open");
   
       setOpenOrderCount(count ?? 0);
+
+      // 메인 게시판 최신글 3개
+      const { data: boardPosts, error: boardError } = await supabase
+        .from("community_posts")
+        .select("id, category, title, created_at")
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      if (boardError) {
+        console.error("메인 게시판 조회 실패:", boardError);
+        setRecentPosts([]);
+      } else {
+        setRecentPosts((boardPosts ?? []) as CommunityPost[]);
+      }
     }
   
     loadHomeStatus();
@@ -550,50 +572,76 @@ setMonthOrderCount(monthCount ?? 0);
 
           <div className="relative mx-auto w-full max-w-6xl">
     
-          <section className="mb-6 rounded-2xl border border-white/10 bg-zinc-950/80 p-4">
-  <div className="mb-3 flex items-center justify-between">
-    <h2 className="text-lg font-black text-white">게시판</h2>
+          <section className="mb-6 rounded-2xl border border-white/10 bg-zinc-950/80 p-4 shadow-xl backdrop-blur-md sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black tracking-[0.12em] text-orange-500">
+                  COMMUNITY
+                </p>
+                <h2 className="mt-1 text-lg font-black text-white sm:text-xl">
+                  게시판
+                </h2>
+                <p className="mt-1 text-xs text-zinc-500">
+                  광양항 차주들의 현장 · 생활 이야기
+                </p>
+              </div>
 
-    <button
-      type="button"
-      className="text-sm font-bold text-orange-500"
-    >
-      글쓰기
-    </button>
-  </div>
+              <Link
+                href="/board"
+                className="shrink-0 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-xs font-black text-orange-400 transition active:scale-[0.98]"
+              >
+                전체보기 →
+              </Link>
+            </div>
 
-  <div className="divide-y divide-white/10">
-    <button
-      type="button"
-      className="flex w-full items-center justify-between py-3 text-left"
-    >
-      <span className="truncate text-sm font-medium text-zinc-200">
-        광양항 운송 정보 공유합니다
-      </span>
-      <span className="ml-3 shrink-0 text-xs text-zinc-500">08:20</span>
-    </button>
+            <div className="mt-4 divide-y divide-white/10">
+              {loggedIn ? (
+                recentPosts.length > 0 ? (
+                  recentPosts.map((post) => (
+                    <Link
+                      key={post.id}
+                      href="/board"
+                      className="flex items-center gap-3 py-3 transition active:bg-white/5"
+                    >
+                      <span className="shrink-0 rounded-md bg-orange-500/10 px-2 py-1 text-[11px] font-black text-orange-400">
+                        {post.category}
+                      </span>
 
-    <button
-      type="button"
-      className="flex w-full items-center justify-between py-3 text-left"
-    >
-      <span className="truncate text-sm font-medium text-zinc-200">
-        대통 터미널 대기 상황
-      </span>
-      <span className="ml-3 shrink-0 text-xs text-zinc-500">07:55</span>
-    </button>
+                      <span className="min-w-0 flex-1 truncate text-sm font-bold text-zinc-200">
+                        {post.title}
+                      </span>
 
-    <button
-      type="button"
-      className="flex w-full items-center justify-between py-3 text-left"
-    >
-      <span className="truncate text-sm font-medium text-zinc-200">
-        오늘 부산 운행하시는 분?
-      </span>
-      <span className="ml-3 shrink-0 text-xs text-zinc-500">07:31</span>
-    </button>
-  </div>
-</section>
+                      <span className="shrink-0 text-[11px] text-zinc-600">
+                        {new Date(post.created_at).toLocaleDateString("ko-KR", {
+                          month: "numeric",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </Link>
+                  ))
+                ) : (
+                  <Link
+                    href="/board"
+                    className="block py-5 text-center text-sm text-zinc-500"
+                  >
+                    아직 게시글이 없습니다. 첫 글을 남겨보세요.
+                  </Link>
+                )
+              ) : (
+                <Link
+                  href="/login?next=/board"
+                  className="block py-5 text-center"
+                >
+                  <p className="text-sm font-bold text-zinc-300">
+                    로그인 후 게시판을 확인할 수 있습니다.
+                  </p>
+                  <p className="mt-1 text-xs text-orange-400">
+                    광양항 차주 커뮤니티 들어가기 →
+                  </p>
+                </Link>
+              )}
+            </div>
+          </section>
 
             {/* 주요 서비스 */}
 
