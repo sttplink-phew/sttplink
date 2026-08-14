@@ -11,6 +11,7 @@ export function Header() {
 
   const [user, setUser] = useState<User | null>(null);
   const [vehicleNumber, setVehicleNumber] = useState("");
+  const [rank, setRank] = useState(1);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,17 +24,19 @@ export function Header() {
 
       if (!user) {
         setVehicleNumber("");
+        setRank(1);
         setLoading(false);
         return;
       }
 
       const { data: driver } = await supabase
         .from("drivers")
-        .select("vehicle_number")
+        .select("vehicle_number, rank")
         .eq("user_id", user.id)
         .maybeSingle();
 
       setVehicleNumber(driver?.vehicle_number ?? "");
+      setRank(driver?.rank ?? 1);
       setLoading(false);
     }
 
@@ -46,6 +49,7 @@ export function Header() {
 
       if (!session?.user) {
         setVehicleNumber("");
+        setRank(1);
       }
     });
 
@@ -60,13 +64,21 @@ export function Header() {
   }
 
   const driverLabel = vehicleNumber
-    ? `${vehicleNumber.slice(-4)}님`
+    ? `${vehicleNumber.slice(-4)}님 정보 보기`
     : "내정보";
+
+  const rankImage =
+    rank === 1
+      ? "/rank-gray.png"
+      : rank === 2
+        ? "/rank-bronze.png"
+        : rank === 3
+          ? "/rank-silver.png"
+          : "/rank-gold.png";
 
   return (
     <header className="fixed left-0 top-0 z-50 w-full border-b border-white/10 bg-[#080808]/95 backdrop-blur-md">
       <div className="mx-auto flex h-[72px] w-full max-w-7xl items-center justify-between px-3 sm:h-20 sm:px-5">
-
         {/* STTPLINK 로고 */}
         <Link
           href="/"
@@ -91,7 +103,17 @@ export function Header() {
                 href="/driver/my"
                 className="rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-2 text-sm font-black text-orange-400 transition active:scale-[0.98]"
               >
-                {driverLabel}
+                <span className="flex items-center gap-2">
+                  <Image
+                    src={rankImage}
+                    alt="회원 계급"
+                    width={36}
+                    height={36}
+                    className="h-9 w-9 object-contain"
+                  />
+
+                  <span>{driverLabel}</span>
+                </span>
               </Link>
 
               <button

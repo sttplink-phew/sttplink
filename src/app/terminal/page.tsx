@@ -137,7 +137,7 @@ if (data?.hasInfo) {
 
   <Link
   href="/"
-  className="rounded-xl border ..."
+  className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-zinc-300 transition hover:bg-white/10 active:scale-[0.98]"
 >
   홈
 </Link>
@@ -160,11 +160,13 @@ if (data?.hasInfo) {
           {terminalPolling ? "조회 중지" : "정보 조회 시작"}
         </button>
 
-        {terminalPolling && (
-          <div className="mt-2 text-center text-xs text-zinc-500">
-            대통 · 국제 1분 간격 자동조회 중
-          </div>
-        )}
+        <p className="mt-3 text-center text-sm text-zinc-400">
+  정보가 없으면{" "}
+  <span className="text-xl font-black text-orange-400">
+    30초
+  </span>
+  마다 자동으로 다시 조회합니다.
+</p>
 
         <section className="mt-6 rounded-2xl border border-white/10 bg-zinc-900 p-5">
           <div className="text-lg font-black">대통(GWCT)</div>
