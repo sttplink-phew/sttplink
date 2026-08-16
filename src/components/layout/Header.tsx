@@ -96,20 +96,20 @@ export function Header() {
         </Link>
 
         {/* 사용자 메뉴 */}
-        <nav className="ml-2 flex shrink-0 items-center gap-2">
+        <nav className="ml-2 flex shrink-0 items-center gap-1.5">
           {!loading && user ? (
             <>
               <Link
                 href="/driver/my"
-                className="rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-2 text-sm font-black text-orange-400 transition active:scale-[0.98]"
+                className="rounded-xl border border-orange-500/40 bg-orange-500/10 px-2.5 py-1.5 text-xs font-black text-orange-400 transition active:scale-[0.98]"
               >
-                <span className="flex items-center gap-2">
+                <span className="flex items-center gap-1.5">
                   <Image
                     src={rankImage}
                     alt="회원 계급"
-                    width={36}
-                    height={36}
-                    className="h-9 w-9 object-contain"
+                    width={28}
+                    height={28}
+                    className="h-7 w-7 object-contain"
                   />
 
                   <span>{driverLabel}</span>
@@ -119,7 +119,7 @@ export function Header() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-xl border border-white/15 px-3 py-2 text-sm font-bold text-zinc-300 transition active:bg-white/10"
+                className="rounded-xl border border-white/15 px-2.5 py-1.5 text-xs font-bold text-zinc-300 transition active:bg-white/10"
               >
                 로그아웃
               </button>
