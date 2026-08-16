@@ -220,11 +220,11 @@ useEffect(() => {
   </div>
 
   <input
-    type="date"
-    value={workDate}
-    onChange={(e) => setWorkDate(e.target.value)}
-    className="h-14 w-full rounded-xl border border-white/10 bg-zinc-800 px-4 text-base font-bold text-white outline-none focus:border-orange-500"
-  />
+  type="date"
+  value={workDate}
+  onChange={(e) => setWorkDate(e.target.value)}
+  className="h-14 w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-zinc-800 px-4 text-base font-bold text-white outline-none focus:border-orange-500"
+/>
 </div>
 
         {loading && (
