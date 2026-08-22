@@ -180,7 +180,6 @@ export default function HomePage() {
   
   const [gwctInfo, setGwctInfo] = useState<TerminalInfo | null>(null);
   const [kitlInfo, setKitlInfo] = useState<TerminalInfo | null>(null);
-  const [terminalPolling, setTerminalPolling] = useState(false);
   const [todayFull, setTodayFull] = useState(0);
   const [todayEmpty, setTodayEmpty] = useState(0);
   
@@ -194,6 +193,24 @@ export default function HomePage() {
 
   const today = getLocalDateValue();
   useEffect(() => {
+    const savedGwct = localStorage.getItem("latestGwctInfo");
+const savedKitl = localStorage.getItem("latestKitlInfo");
+
+if (savedGwct) {
+  try {
+    setGwctInfo(JSON.parse(savedGwct));
+  } catch (error) {
+    console.error("GWCT 최근 조회값 읽기 실패:", error);
+  }
+}
+
+if (savedKitl) {
+  try {
+    setKitlInfo(JSON.parse(savedKitl));
+  } catch (error) {
+    console.error("KITL 최근 조회값 읽기 실패:", error);
+  }
+}
     async function loadHomeStatus() {
       const {
         data: { user },
@@ -301,121 +318,7 @@ setMonthOrderCount(monthCount ?? 0);
   
     loadHomeStatus();
   }, [supabase, today]);
-  async function checkGwct() {
-    
-    if (!vehicleNumber) return;
   
-    const truckNo = vehicleNumber.slice(-4);
-  
-    if (!/^\d{4}$/.test(truckNo)) return;
-  
-    try {
-      const res = await fetch("/api/terminal/gwct", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ truckNo }),
-      });
-  
-      const data = await res.json();
-      setGwctInfo(data);
-    } catch (error) {
-      console.error("GWCT 조회 실패:", error);
-    }
-  }
-  async function checkKitl() {
-    if (!vehicleNumber) return;
-  
-    const truckNo = vehicleNumber.slice(-4);
-  
-    if (!/^\d{4}$/.test(truckNo)) return;
-  
-    try {
-      const res = await fetch("/api/terminal/kitl", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ truckNo }),
-      });
-  
-      const data = await res.json();
-      setKitlInfo(data);
-    } catch (error) {
-      console.error("KITL 조회 실패:", error);
-    }
-  }
-  useEffect(() => {
-    if (!loggedIn || !vehicleNumber) return;
-
-    setTerminalPolling(true);
-  }, [loggedIn, vehicleNumber]);
-
-  useEffect(() => {
-    if (!terminalPolling) return;
-
-    let cancelled = false;
-
-    async function checkBothTerminals() {
-      if (!vehicleNumber) return;
-
-      const truckNo = vehicleNumber.slice(-4);
-
-      if (!/^\d{4}$/.test(truckNo)) return;
-
-      try {
-        const [gwctRes, kitlRes] = await Promise.all([
-          fetch("/api/terminal/gwct", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ truckNo }),
-          }),
-          fetch("/api/terminal/kitl", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ truckNo }),
-          }),
-        ]);
-
-        const [gwctData, kitlData] = await Promise.all([
-          gwctRes.json(),
-          kitlRes.json(),
-        ]);
-
-        if (cancelled) return;
-
-        setGwctInfo(gwctData);
-        setKitlInfo(kitlData);
-
-        const hasAnyTerminalInfo =
-          Boolean(gwctData?.hasInfo) ||
-          Boolean(kitlData?.hasInfo) ||
-          Boolean(kitlData?.hasAnyInfo);
-
-        if (hasAnyTerminalInfo) {
-          setTerminalPolling(false);
-        }
-      } catch (error) {
-        console.error("터미널 통합 조회 실패:", error);
-      }
-    }
-
-    checkBothTerminals();
-
-    const timer = setInterval(() => {
-      checkBothTerminals();
-    }, 30000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [terminalPolling, vehicleNumber]);
     const canGoNext = Boolean(
     cargoType &&
       pickupDate &&
@@ -699,18 +602,16 @@ setMonthOrderCount(monthCount ?? 0);
           <>
             <div>{`내 차량 ${vehicleNumber}`}</div>
             {gwctInfo?.hasInfo ? (
-              <div className="mt-2 text-orange-400">
-                대통(GWCT) · 반입 {gwctInfo.counts?.inbound ?? 0}건 · 반출{" "}
-                {gwctInfo.counts?.outbound ?? 0}건
-              </div>
-            ) : gwctInfo ? (
-              <div className="mt-2">대통(GWCT) · 정보 없음</div>
-            ) : terminalPolling ? (
-              <div className="mt-2">대통(GWCT) · 조회중...</div>
-            ) : (
-              <div className="mt-2">대통(GWCT) · 조회 대기</div>
-            )}
-            {kitlInfo?.hasInfo ? (
+  <div className="mt-2 text-orange-400">
+    대통(GWCT) · 반입 {gwctInfo.counts?.inbound ?? 0}건 · 반출{" "}
+    {gwctInfo.counts?.outbound ?? 0}건
+  </div>
+) : gwctInfo ? (
+  <div className="mt-2">대통(GWCT) · 정보 없음</div>
+) : (
+  <div className="mt-2">대통(GWCT) · 최근 조회 정보 없음</div>
+)}
+           {kitlInfo?.hasInfo ? (
   <div className="mt-2 text-blue-400">
     국제(KITL) · 반입 {kitlInfo.counts?.inbound ?? 0}건 · 반출{" "}
     {kitlInfo.counts?.outbound ?? 0}건
@@ -723,11 +624,11 @@ setMonthOrderCount(monthCount ?? 0);
   <div className="mt-2 text-zinc-400">
     국제(KITL) · 정보 없음
   </div>
-) : terminalPolling ? (
+) : (
   <div className="mt-2 text-zinc-400">
-    국제(KITL) · 조회중...
+    국제(KITL) · 최근 조회 정보 없음
   </div>
-) : null}
+)}
           </>
         )
       : "차량정보 등록 필요"

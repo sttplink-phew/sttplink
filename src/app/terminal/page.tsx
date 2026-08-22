@@ -58,11 +58,11 @@ export default function TerminalPage() {
   }, [supabase]);
 
   async function checkGwct() {
-    if (!vehicleNumber) return;
+    if (!vehicleNumber) return null;
 
     const truckNo = vehicleNumber.slice(-4);
 
-    if (!/^\d{4}$/.test(truckNo)) return;
+    if (!/^\d{4}$/.test(truckNo)) return null;
 
     try {
       const res = await fetch("/api/terminal/gwct", {
@@ -73,23 +73,28 @@ export default function TerminalPage() {
         body: JSON.stringify({ truckNo }),
       });
 
-      const data = await res.json();
-setGwctInfo(data);
+      const data: TerminalInfo = await res.json();
 
-if (data?.hasInfo) {
-  setTerminalPolling(false);
-}
+      setGwctInfo(data);
+
+      localStorage.setItem(
+        "latestGwctInfo",
+        JSON.stringify(data)
+      );
+
+      return data;
     } catch (error) {
       console.error("GWCT 조회 실패:", error);
+      return null;
     }
   }
 
   async function checkKitl() {
-    if (!vehicleNumber) return;
+    if (!vehicleNumber) return null;
 
     const truckNo = vehicleNumber.slice(-4);
 
-    if (!/^\d{4}$/.test(truckNo)) return;
+    if (!/^\d{4}$/.test(truckNo)) return null;
 
     try {
       const res = await fetch("/api/terminal/kitl", {
@@ -100,29 +105,69 @@ if (data?.hasInfo) {
         body: JSON.stringify({ truckNo }),
       });
 
-      const data = await res.json();
-setKitlInfo(data);
+      const data: TerminalInfo = await res.json();
 
-if (data?.hasInfo) {
-  setTerminalPolling(false);
-}
+      setKitlInfo(data);
+
+      localStorage.setItem(
+        "latestKitlInfo",
+        JSON.stringify(data)
+      );
+
+      return data;
     } catch (error) {
       console.error("KITL 조회 실패:", error);
+      return null;
     }
+  }
+
+  async function checkBothTerminals() {
+    const [gwct, kitl] = await Promise.all([
+      checkGwct(),
+      checkKitl(),
+    ]);
+
+    localStorage.setItem(
+      "latestTerminalCheckedAt",
+      new Date().toISOString()
+    );
+
+    const foundInfo =
+      Boolean(gwct?.hasInfo) ||
+      Boolean(kitl?.hasInfo);
+
+    if (foundInfo) {
+      setTerminalPolling(false);
+    }
+
+    return foundInfo;
   }
 
   useEffect(() => {
     if (!terminalPolling || !vehicleNumber) return;
 
-    checkGwct();
-    checkKitl();
+    let cancelled = false;
+
+    async function runCheck() {
+      const foundInfo = await checkBothTerminals();
+
+      if (cancelled) return;
+
+      if (foundInfo) {
+        setTerminalPolling(false);
+      }
+    }
+
+    runCheck();
 
     const timer = setInterval(() => {
-      checkGwct();
-      checkKitl();
+      runCheck();
     }, 30000);
 
-    return () => clearInterval(timer);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, [terminalPolling, vehicleNumber]);
 
   function togglePolling() {
@@ -132,16 +177,18 @@ if (data?.hasInfo) {
   return (
     <main className="min-h-screen bg-black px-4 py-8 text-white">
       <div className="mx-auto max-w-xl">
-      <div className="flex items-center justify-between">
-  <h1 className="text-2xl font-black">터미널 정보</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-black">
+            터미널 정보
+          </h1>
 
-  <Link
-  href="/"
-  className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-zinc-300 transition hover:bg-white/10 active:scale-[0.98]"
->
-  홈
-</Link>
-</div>
+          <Link
+            href="/"
+            className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-zinc-300 transition hover:bg-white/10 active:scale-[0.98]"
+          >
+            홈
+          </Link>
+        </div>
 
         <div className="mt-2 text-sm text-zinc-400">
           {loadingVehicle
@@ -161,15 +208,17 @@ if (data?.hasInfo) {
         </button>
 
         <p className="mt-3 text-center text-sm text-zinc-400">
-  정보가 없으면{" "}
-  <span className="text-xl font-black text-orange-400">
-    30초
-  </span>
-  마다 자동으로 다시 조회합니다.
-</p>
+          정보가 없으면{" "}
+          <span className="text-xl font-black text-orange-400">
+            30초
+          </span>
+          마다 자동으로 다시 조회합니다.
+        </p>
 
         <section className="mt-6 rounded-2xl border border-white/10 bg-zinc-900 p-5">
-          <div className="text-lg font-black">대통(GWCT)</div>
+          <div className="text-lg font-black">
+            대통(GWCT)
+          </div>
 
           {gwctInfo?.hasInfo ? (
             <div className="mt-2 text-orange-400">
@@ -177,16 +226,24 @@ if (data?.hasInfo) {
               {gwctInfo.counts?.outbound ?? 0}건
             </div>
           ) : gwctInfo ? (
-            <div className="mt-2 text-zinc-400">정보 없음</div>
+            <div className="mt-2 text-zinc-400">
+              정보 없음
+            </div>
           ) : terminalPolling ? (
-            <div className="mt-2 text-zinc-400">조회중...</div>
+            <div className="mt-2 text-zinc-400">
+              조회중...
+            </div>
           ) : (
-            <div className="mt-2 text-zinc-400">조회 대기</div>
+            <div className="mt-2 text-zinc-400">
+              조회 대기
+            </div>
           )}
         </section>
 
         <section className="mt-4 rounded-2xl border border-white/10 bg-zinc-900 p-5">
-          <div className="text-lg font-black">국제(KITL)</div>
+          <div className="text-lg font-black">
+            국제(KITL)
+          </div>
 
           {kitlInfo?.hasInfo ? (
             <div className="mt-2 text-blue-400">
@@ -198,11 +255,17 @@ if (data?.hasInfo) {
               완료된 정보만 있음
             </div>
           ) : kitlInfo ? (
-            <div className="mt-2 text-zinc-400">정보 없음</div>
+            <div className="mt-2 text-zinc-400">
+              정보 없음
+            </div>
           ) : terminalPolling ? (
-            <div className="mt-2 text-zinc-400">조회중...</div>
+            <div className="mt-2 text-zinc-400">
+              조회중...
+            </div>
           ) : (
-            <div className="mt-2 text-zinc-400">조회 대기</div>
+            <div className="mt-2 text-zinc-400">
+              조회 대기
+            </div>
           )}
         </section>
       </div>
