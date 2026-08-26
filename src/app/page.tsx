@@ -357,17 +357,17 @@ export default function HomePage() {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-xs font-black text-zinc-500">
-                      COMMUNITY
-                    </div>
+                  <div className="text-xs font-black text-orange-500">
+  STTP LINK
+</div>
 
-                    <div className="mt-1 text-xl font-black">
-                      게시판
-                    </div>
+<div className="mt-1 text-xl font-black">
+  소식 및 추천
+</div>
 
-                    <div className="mt-2 text-sm text-zinc-500">
-                      공지 · 정보 공유
-                    </div>
+<div className="mt-2 text-sm text-zinc-500">
+  맛집 · 현장 · 자유
+</div>
                   </div>
 
                   <div className="text-2xl text-orange-500">
