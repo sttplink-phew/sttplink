@@ -169,26 +169,31 @@ export default function InspectionPage() {
 
       const [{ data: driver }, { data: setting }] = await Promise.all([
         supabase
-          .from("drivers")
-          .select("vehicle_number")
-          .eq("user_id", user.id)
-          .maybeSingle(),
-        supabase
-          .from("inspection_settings")
-          .select("transport_company_name, driver_name, recipient_email")
-          .eq("user_id", user.id)
-          .maybeSingle(),
-      ]);
+  .from("inspection_settings")
+  .select("vehicle_number, transport_company_name, driver_name, recipient_email")
+  .eq("user_id", user.id)
+  .maybeSingle(),
 
-      setVehicleNumber(driver?.vehicle_number ?? "");
+  supabase
+  .from("inspection_settings")
+  .select("vehicle_number, transport_company_name, driver_name, recipient_email")
+  .eq("user_id", user.id)
+  .maybeSingle(),
+]);
 
-      if (setting) {
-        setSettings({
-          transport_company_name: setting.transport_company_name ?? "",
-          driver_name: setting.driver_name ?? "",
-          recipient_email: setting.recipient_email ?? "",
-        });
-      }
+setVehicleNumber(
+  setting?.vehicle_number ?? driver?.vehicle_number ?? ""
+);
+
+if (setting) {
+  setSettings({
+    transport_company_name: setting.transport_company_name ?? "",
+    driver_name: setting.driver_name ?? "",
+    recipient_email: setting.recipient_email ?? "",
+  });
+}
+
+setLoading(false);
 
       setLoading(false);
     }
@@ -386,6 +391,7 @@ export default function InspectionPage() {
       .upsert(
         {
           user_id: userId,
+          vehicle_number: vehicleNumber.trim() || null,
           transport_company_name: settings.transport_company_name.trim() || null,
           driver_name: settings.driver_name.trim() || null,
           recipient_email: settings.recipient_email.trim() || null,
@@ -713,10 +719,10 @@ export default function InspectionPage() {
                     차량번호
                   </span>
                   <input
-                    value={vehicleNumber}
-                    readOnly
-                    className="h-12 w-full min-w-0 rounded-xl border border-white/10 bg-zinc-800 px-4 text-sm text-zinc-400"
-                  />
+  value={vehicleNumber}
+  onChange={(e) => setVehicleNumber(e.target.value)}
+  className="h-12 w-full min-w-0 rounded-xl border border-white/10 bg-zinc-800 px-4 text-sm text-white outline-none focus:border-orange-500"
+/>
                 </label>
 
                 <label className="block min-w-0">
@@ -826,7 +832,7 @@ export default function InspectionPage() {
           />
         </div>
 
-        <div className="hidden print:block">
+        <div className="hidden print:block print-only-report">
           <MonthlyReport
             monthKey={monthKey}
             vehicleNumber={vehicleNumber}
@@ -963,22 +969,42 @@ function MonthlyReport({
 
   return (
     <div className="min-w-[1150px] bg-white p-3 text-black print:min-w-0 print:p-2">
+      
       <style jsx global>{`
-        @page {
-          size: A4 landscape;
-          margin: 8mm;
-        }
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
 
-        @media print {
-          body {
-            background: white !important;
-          }
+  @media print {
+    body {
+      background: white !important;
+    }
 
-          .inspection-print-table {
-            font-size: 7px !important;
-          }
-        }
-      `}</style>
+    header,
+    nav {
+      display: none !important;
+    }
+
+    main > * {
+      display: none !important;
+    }
+
+    main > .print-only-report {
+      display: block !important;
+    }
+
+    .print-only-report {
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    .inspection-print-table {
+      font-size: 7px !important;
+    }
+  }
+`}</style>
 
       <h2 className="mb-2 text-center text-base font-bold">
         운수종사자 일상점검표
