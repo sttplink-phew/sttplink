@@ -744,9 +744,12 @@ export default function TerminalPage() {
               workItem.containerNo ||
               null,
 
-            container_size:
+              container_size:
               containerSize,
-
+            
+            container_status:
+              workItem.fe || null,
+            
             region,
 
             region_custom:

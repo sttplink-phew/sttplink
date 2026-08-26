@@ -14,6 +14,7 @@ type TripLog = {
 
   container_no: string | null;
   container_size: number | null;
+  container_status: string | null;
 
   region: string | null;
   region_custom: string | null;
@@ -225,6 +226,16 @@ export default function DailyPage() {
       (log) => log.container_size === 40
     ).length;
 
+    const dailyFull =
+  dailyLogs.filter(
+    (log) => log.container_status === "FULL"
+  ).length;
+
+const dailyEmpty =
+  dailyLogs.filter(
+    (log) => log.container_status === "EMPTY"
+  ).length;
+
   // -----------------------------
   // 월 집계
   // -----------------------------
@@ -247,6 +258,16 @@ export default function DailyPage() {
   const monthly40 =
     monthlyLogs.filter(
       (log) => log.container_size === 40
+    ).length;
+
+    const monthlyFull =
+    monthlyLogs.filter(
+      (log) => log.container_status === "FULL"
+    ).length;
+  
+  const monthlyEmpty =
+    monthlyLogs.filter(
+      (log) => log.container_status === "EMPTY"
     ).length;
 
   const monthlyYeosu =
@@ -470,6 +491,27 @@ export default function DailyPage() {
               </div>
             </div>
           </div>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+  <div className="rounded-2xl border border-white/10 bg-zinc-900 p-4">
+    <div className="text-sm text-zinc-500">
+      FULL
+    </div>
+
+    <div className="mt-1 text-2xl font-black">
+      {dailyFull}
+    </div>
+  </div>
+
+  <div className="rounded-2xl border border-white/10 bg-zinc-900 p-4">
+    <div className="text-sm text-zinc-500">
+      EMPTY
+    </div>
+
+    <div className="mt-1 text-2xl font-black">
+      {dailyEmpty}
+    </div>
+  </div>
+</div>
         </section>
 
         {/* 오늘 상세 */}
@@ -812,7 +854,27 @@ export default function DailyPage() {
               </div>
             </div>
           </div>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+  <div className="rounded-xl bg-zinc-900 p-4">
+    <div className="text-sm text-zinc-500">
+      FULL
+    </div>
 
+    <div className="mt-1 text-2xl font-black">
+      {monthlyFull}
+    </div>
+  </div>
+
+  <div className="rounded-xl bg-zinc-900 p-4">
+    <div className="text-sm text-zinc-500">
+      EMPTY
+    </div>
+
+    <div className="mt-1 text-2xl font-black">
+      {monthlyEmpty}
+    </div>
+  </div>
+</div>
           <div className="mt-4 grid grid-cols-3 gap-2">
             <div className="rounded-xl bg-zinc-900 p-3 text-center">
               <div className="text-xs text-zinc-500">

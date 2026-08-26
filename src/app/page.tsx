@@ -10,6 +10,7 @@ type TripLog = {
   id: string;
   direction: "IN" | "OUT";
   container_size: number | null;
+  container_status: string | null;
 };
 
 export default function HomePage() {
@@ -179,6 +180,16 @@ export default function HomePage() {
         40
     ).length;
 
+    const fullCount =
+  todayLogs.filter(
+    (log) => log.container_status === "FULL"
+  ).length;
+
+const emptyCount =
+  todayLogs.filter(
+    (log) => log.container_status === "EMPTY"
+  ).length;
+
   return (
     <>
       <Header />
@@ -315,6 +326,13 @@ export default function HomePage() {
                         }
                         건
                       </div>
+                      <div className="text-xs text-zinc-600">
+  FULL{" "}
+  {fullCount}
+  건 · EMPTY{" "}
+  {emptyCount}
+  건
+</div>
                     </div>
                   ) : (
                     <div className="mt-3 text-sm text-zinc-500">
