@@ -200,7 +200,22 @@ export default function DailyPage() {
 
     setLoading(false);
   }
-
+  const deleteLog = async (id: string) => {
+    const ok = window.confirm("이 운행기록을 삭제할까요?");
+    if (!ok) return;
+  
+    const { error } = await supabase
+      .from("trip_logs")
+      .delete()
+      .eq("id", id);
+  
+    if (error) {
+      alert(`삭제 실패: ${error.message}`);
+      return;
+    }
+  
+    await loadLogs();
+  };
   useEffect(() => {
     loadLogs();
   }, [workDate]);
@@ -660,12 +675,21 @@ const dailyEmpty =
                       </div>
                     )}
 
-                    {log.entry_source ===
-                      "MANUAL" && (
-                      <div className="mt-3 text-xs font-bold text-zinc-600">
-                        수기 등록
-                      </div>
-                    )}
+<div className="mt-3 flex items-center justify-between">
+  <div className="text-xs font-bold text-zinc-600">
+    {log.entry_source === "MANUAL"
+      ? "수기 등록"
+      : ""}
+  </div>
+
+  <button
+    type="button"
+    onClick={() => deleteLog(log.id)}
+    className="text-xs font-black text-red-400"
+  >
+    삭제
+  </button>
+</div>
                   </div>
                 )
               )}
