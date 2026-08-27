@@ -580,11 +580,34 @@ export default function DriverMyPage() {
                     : "내 정보"}
                 </h1>
 
-                <p className="mt-1 text-xs text-zinc-500">
-                  회원등급{" "}
-                  {profile.rank ??
-                    1}
-                </p>
+                <div className="mt-2 flex items-center gap-2">
+  <img
+    src={
+      (profile.rank ?? 1) === 4
+        ? "/rank-gold.png"
+        : (profile.rank ?? 1) === 3
+        ? "/rank-silver.png"
+        : (profile.rank ?? 1) === 2
+        ? "/rank-bronze.png"
+        : "/rank-gray.png"
+    }
+    alt="회원등급"
+    className="h-7 w-7 object-contain"
+  />
+
+  <span className="text-xs font-bold text-zinc-400">
+    {(profile.rank ?? 1) === 4
+      ? "골드"
+      : (profile.rank ?? 1) === 3
+      ? "실버"
+      : (profile.rank ?? 1) === 2
+      ? "브론즈"
+      : "아이언"}
+  </span>
+  <span className="text-[10px] text-zinc-600">
+  (활동이 많으면 등급이 오릅니다)
+</span>
+</div>
               </div>
 
               <Link

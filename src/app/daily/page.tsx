@@ -103,6 +103,9 @@ export default function DailyPage() {
   const [manualSize, setManualSize] =
     useState<20 | 40>(40);
 
+    const [manualContainerStatus, setManualContainerStatus] =
+  useState<"FULL" | "EMPTY">("FULL");
+
   const [manualRegion, setManualRegion] =
     useState<RegionType>("");
 
@@ -289,6 +292,43 @@ const dailyEmpty =
   // 수기 운행 추가
   // -----------------------------
 
+  async function updateDriverRank(userId: string) {
+    try {
+      const { count, error: countError } = await supabase
+        .from("trip_logs")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId);
+  
+      if (countError) {
+        console.error("등급용 운행 건수 조회 실패:", countError);
+        return;
+      }
+  
+      const total = count ?? 0;
+  
+      let nextRank = 1;
+  
+      if (total >= 60) {
+        nextRank = 4;
+      } else if (total >= 30) {
+        nextRank = 3;
+      } else if (total >= 10) {
+        nextRank = 2;
+      }
+  
+      const { error: rankError } = await supabase
+        .from("drivers")
+        .update({ rank: nextRank })
+        .eq("user_id", userId);
+  
+      if (rankError) {
+        console.error("회원등급 업데이트 실패:", rankError);
+      }
+    } catch (error) {
+      console.error("회원등급 처리 오류:", error);
+    }
+  }
+
   async function saveManualTrip() {
     if (!manualRegion) {
       alert("지역을 선택해주세요.");
@@ -338,6 +378,9 @@ const dailyEmpty =
         container_size:
           manualSize,
 
+          container_status:
+         manualContainerStatus,
+
         region:
           manualRegion,
 
@@ -369,6 +412,8 @@ const dailyEmpty =
       return;
     }
 
+    await updateDriverRank(user.id);
+    
     setManualDirection("IN");
     setManualSize(40);
     setManualRegion("");
@@ -704,6 +749,23 @@ const dailyEmpty =
                 ))}
               </div>
 
+              <div className="mt-3 grid grid-cols-2 gap-2">
+  {(["FULL", "EMPTY"] as const).map((status) => (
+    <button
+      key={status}
+      type="button"
+      onClick={() => setManualContainerStatus(status)}
+      className={`h-14 rounded-xl font-black ${
+        manualContainerStatus === status
+          ? "bg-orange-600"
+          : "bg-black text-zinc-500"
+      }`}
+    >
+      {status}
+    </button>
+  ))}
+</div>
+
               <input
                 type="text"
                 value={manualContainerNo}
@@ -796,117 +858,321 @@ const dailyEmpty =
           )}
         </section>
 
-        {/* 월간 집계 */}
+{/* 월간 집계 */}
+<section className="mt-8 rounded-2xl border border-white/10 bg-zinc-950 p-5">
+  <div className="text-sm font-black text-orange-400">
+    {workDate.slice(0, 7)}
+  </div>
 
-        <section className="mt-8 rounded-2xl border border-white/10 bg-zinc-950 p-5">
-          <div className="text-sm font-black text-orange-400">
-            {workDate.slice(0, 7)}
-          </div>
+  <div className="flex items-center justify-between gap-3">
+    <h2 className="mt-1 text-2xl font-black">
+      월간 결산
+    </h2>
 
-          <h2 className="mt-1 text-2xl font-black">
-            월간 결산
-          </h2>
+    <button
+      type="button"
+      onClick={async () => {
+        const sortedLogs = [...monthlyLogs].sort((a, b) =>
+          String(a.work_date ?? "").localeCompare(
+            String(b.work_date ?? "")
+          )
+        );
 
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-zinc-900 p-4">
-              <div className="text-sm text-zinc-500">
-                총 운행
-              </div>
+        const fullLogs = sortedLogs.filter(
+          (log) => log.container_status === "FULL"
+        );
 
-              <div className="mt-1 text-3xl font-black">
-                {monthlyLogs.length}
-              </div>
-            </div>
+        const emptyLogs = sortedLogs.filter(
+          (log) => log.container_status === "EMPTY"
+        );
 
-            <div className="rounded-xl bg-zinc-900 p-4">
-              <div className="text-sm text-zinc-500">
-                반입 / 반출
-              </div>
+        const fullYeosu = fullLogs.filter(
+          (log) => log.region === "여수"
+        ).length;
 
-              <div className="mt-1 text-xl font-black">
-                <span className="text-orange-400">
-                  {monthlyInbound}
-                </span>
-                {" / "}
-                <span className="text-blue-400">
-                  {monthlyOutbound}
-                </span>
-              </div>
-            </div>
+        const fullShuttle = fullLogs.filter(
+          (log) => log.region === "셔틀"
+        ).length;
 
-            <div className="rounded-xl bg-zinc-900 p-4">
-              <div className="text-sm text-zinc-500">
-                20FT
-              </div>
+        const otherRegionCounts = fullLogs
+          .filter(
+            (log) =>
+              log.region &&
+              log.region !== "여수" &&
+              log.region !== "셔틀"
+          )
+          .reduce<Record<string, number>>(
+            (acc, log) => {
+              const region = log.region || "기타";
+              acc[region] = (acc[region] || 0) + 1;
+              return acc;
+            },
+            {}
+          );
 
-              <div className="mt-1 text-2xl font-black">
-                {monthly20}
-              </div>
-            </div>
+        const otherText =
+          Object.entries(otherRegionCounts)
+            .map(
+              ([region, count]) =>
+                `${region} ${count}`
+            )
+            .join(" / ") || "기타 0";
 
-            <div className="rounded-xl bg-zinc-900 p-4">
-              <div className="text-sm text-zinc-500">
-                40FT
-              </div>
+        const empty40 = emptyLogs.filter(
+          (log) =>
+            Number(log.container_size) === 40
+        ).length;
 
-              <div className="mt-1 text-2xl font-black">
-                {monthly40}
-              </div>
-            </div>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-  <div className="rounded-xl bg-zinc-900 p-4">
-    <div className="text-sm text-zinc-500">
-      FULL
+        const empty20 = emptyLogs.filter(
+          (log) =>
+            Number(log.container_size) === 20
+        ).length;
+
+        const dateCounts: Record<string, number> = {};
+
+        const detailLines = sortedLogs.map((log) => {
+          const date = String(log.work_date ?? "");
+          const shortDate = date
+            ? date.slice(5, 10).replace("-", "/")
+            : "";
+
+          dateCounts[date] =
+            (dateCounts[date] || 0) + 1;
+
+          const status =
+            log.container_status || "-";
+
+          const size = log.container_size
+            ? `${log.container_size}FT`
+            : "-";
+
+          const region = log.region || "-";
+
+          const containerNo =
+            log.container_no || "-";
+
+          return `${shortDate} ${dateCounts[date]}. ${status} / ${size} / ${region} / ${containerNo}`;
+        });
+
+        const text = [
+          `${workDate.slice(0, 7)} 월간 운행 결산`,
+          "",
+          `[FULL] 총 ${fullLogs.length}건 / 여수 ${fullYeosu} / 셔틀 ${fullShuttle} / ${otherText}`,
+          `[EMPTY] 총 ${emptyLogs.length}건 / 40FT ${empty40} / 20FT ${empty20}`,
+          "",
+          ...detailLines,
+        ].join("\n");
+
+        await navigator.clipboard.writeText(
+          text
+        );
+
+        alert("월간 결산을 복사했습니다.");
+      }}
+      className="rounded-xl bg-orange-600 px-4 py-3 text-sm font-black text-white"
+    >
+      전체 복사하기
+    </button>
+  </div>
+
+  {/* FULL / EMPTY 요약 */}
+  <div className="mt-5 space-y-3">
+    <div className="rounded-xl bg-zinc-900 p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-lg font-black">
+          FULL
+        </span>
+
+        <span className="text-2xl font-black text-orange-400">
+          {monthlyFull}건
+        </span>
+      </div>
+
+      <div className="mt-2 text-sm leading-6 text-zinc-400">
+        여수{" "}
+        {
+          monthlyLogs.filter(
+            (log) =>
+              log.container_status === "FULL" &&
+              log.region === "여수"
+          ).length
+        }
+        건
+        {" / "}
+        셔틀{" "}
+        {
+          monthlyLogs.filter(
+            (log) =>
+              log.container_status === "FULL" &&
+              log.region === "셔틀"
+          ).length
+        }
+        건
+        {" / "}
+        {(() => {
+          const counts = monthlyLogs
+            .filter(
+              (log) =>
+                log.container_status === "FULL" &&
+                log.region &&
+                log.region !== "여수" &&
+                log.region !== "셔틀"
+            )
+            .reduce<Record<string, number>>(
+              (acc, log) => {
+                const region =
+                  log.region || "기타";
+
+                acc[region] =
+                  (acc[region] || 0) + 1;
+
+                return acc;
+              },
+              {}
+            );
+
+          const entries =
+            Object.entries(counts);
+
+          if (entries.length === 0) {
+            return "기타 0건";
+          }
+
+          return entries
+            .map(
+              ([region, count]) =>
+                `${region} ${count}건`
+            )
+            .join(" / ");
+        })()}
+      </div>
     </div>
 
-    <div className="mt-1 text-2xl font-black">
-      {monthlyFull}
+    <div className="rounded-xl bg-zinc-900 p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-lg font-black">
+          EMPTY
+        </span>
+
+        <span className="text-2xl font-black text-blue-400">
+          {monthlyEmpty}건
+        </span>
+      </div>
+
+      <div className="mt-2 text-sm leading-6 text-zinc-400">
+        40FT{" "}
+        {
+          monthlyLogs.filter(
+            (log) =>
+              log.container_status === "EMPTY" &&
+              Number(log.container_size) === 40
+          ).length
+        }
+        건
+        {" / "}
+        20FT{" "}
+        {
+          monthlyLogs.filter(
+            (log) =>
+              log.container_status === "EMPTY" &&
+              Number(log.container_size) === 20
+          ).length
+        }
+        건
+      </div>
     </div>
   </div>
 
-  <div className="rounded-xl bg-zinc-900 p-4">
-    <div className="text-sm text-zinc-500">
-      EMPTY
+  {/* 날짜별 상세 */}
+  <div className="mt-6">
+    <div className="mb-3 text-sm font-black text-zinc-400">
+      날짜별 운행 상세
     </div>
 
-    <div className="mt-1 text-2xl font-black">
-      {monthlyEmpty}
+    <div className="overflow-hidden rounded-xl border border-white/10">
+      {(() => {
+        const sortedLogs = [...monthlyLogs].sort(
+          (a, b) =>
+            String(
+              a.work_date ?? ""
+            ).localeCompare(
+              String(b.work_date ?? "")
+            )
+        );
+
+        const dateCounts: Record<
+          string,
+          number
+        > = {};
+
+        if (sortedLogs.length === 0) {
+          return (
+            <div className="p-5 text-center text-sm text-zinc-500">
+              이번 달 운행 기록이 없습니다.
+            </div>
+          );
+        }
+
+        return sortedLogs.map(
+          (log, index) => {
+            const date = String(
+              log.work_date ?? ""
+            );
+
+            dateCounts[date] =
+              (dateCounts[date] || 0) + 1;
+
+            const shortDate = date
+              ? date
+                  .slice(5, 10)
+                  .replace("-", "/")
+              : "-";
+
+            return (
+              <div
+                key={log.id ?? index}
+                className="border-b border-white/10 px-3 py-3 text-sm last:border-b-0"
+              >
+                <div className="whitespace-nowrap font-bold">
+                  <span className="text-zinc-400">
+                    {shortDate}
+                  </span>
+                  {" "}
+                  <span className="text-zinc-500">
+                    {dateCounts[date]}.
+                  </span>
+                  {" "}
+                  <span
+                    className={
+                      log.container_status ===
+                      "FULL"
+                        ? "text-orange-400"
+                        : "text-blue-400"
+                    }
+                  >
+                    {log.container_status ||
+                      "-"}
+                  </span>
+                  {" / "}
+                  {log.container_size
+                    ? `${log.container_size}FT`
+                    : "-"}
+                  {" / "}
+                  {log.region || "-"}
+                  {" / "}
+                  <span className="text-white">
+                    {log.container_no ||
+                      "-"}
+                  </span>
+                </div>
+              </div>
+            );
+          }
+        );
+      })()}
     </div>
   </div>
-</div>
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            <div className="rounded-xl bg-zinc-900 p-3 text-center">
-              <div className="text-xs text-zinc-500">
-                여수
-              </div>
-
-              <div className="mt-1 text-xl font-black">
-                {monthlyYeosu}
-              </div>
-            </div>
-
-            <div className="rounded-xl bg-zinc-900 p-3 text-center">
-              <div className="text-xs text-zinc-500">
-                셔틀
-              </div>
-
-              <div className="mt-1 text-xl font-black">
-                {monthlyShuttle}
-              </div>
-            </div>
-
-            <div className="rounded-xl bg-zinc-900 p-3 text-center">
-              <div className="text-xs text-zinc-500">
-                기타
-              </div>
-
-              <div className="mt-1 text-xl font-black">
-                {monthlyOther}
-              </div>
-            </div>
-          </div>
-        </section>
+</section>
 
         <div className="h-10" />
       </div>
