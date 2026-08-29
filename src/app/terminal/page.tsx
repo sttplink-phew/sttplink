@@ -676,12 +676,18 @@ export default function TerminalPage() {
         "운행일지 저장 중..."
       );
 
+      const workDate = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Seoul",
+      }).format(new Date());
+
       const { error } =
         await supabase
           .from("trip_logs")
           .insert({
             user_id:
               user.id,
+
+            work_date: workDate,
 
             terminal:
               workTerminal ||
@@ -803,18 +809,17 @@ export default function TerminalPage() {
         {/* ================================= */}
 
         <section className="mt-6 rounded-2xl border border-orange-500/30 bg-zinc-950 p-5">
-          <div className="text-sm font-black text-orange-400">
-            게이트 통과 후
-          </div>
+  <div className="text-base font-black text-orange-400">
+    게이트 통과 후 아래 터미널을 누르세요!
+  </div>
 
-          <h2 className="mt-1 text-xl font-black">
-            작업정보 조회
-          </h2>
+  <h2 className="mt-2 text-xl font-black">
+    작업정보 조회
+  </h2>
 
-          <p className="mt-2 text-sm leading-6 text-zinc-500">
-            게이트를 통과한 터미널을 선택하면
-            해당 터미널 한 곳만 조회합니다.
-          </p>
+  <p className="mt-2 text-sm leading-6 text-zinc-500">
+    배차가 확인된 터미널만 선택해서 최신 작업정보를 조회합니다.
+  </p>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
             <button

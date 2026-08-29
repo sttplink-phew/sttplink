@@ -582,49 +582,50 @@ export default function HomePage() {
 
               <section className="rounded-3xl border border-orange-500/40 bg-black/80 p-6 shadow-2xl backdrop-blur-md">
 
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="text-4xl">
-                      ⚓
-                    </div>
+              <div>
+  <div className="text-4xl">
+    ⚓
+  </div>
 
-                    <div className="mt-4 text-3xl font-black">
-                      터미널 정보
-                    </div>
+  <div className="mt-4 text-3xl font-black">
+    터미널 정보
+  </div>
 
-                    <div className="mt-2 text-sm font-bold leading-6 text-zinc-400">
-                      게이트 진입 전 배차정보 조회
-                    </div>
-                  </div>
+  <div className="mt-3 text-lg font-black text-orange-400">
+    대통 · 국제 동시 조회
+  </div>
 
-                  <div className="rounded-full bg-orange-600 px-4 py-2 text-sm font-black">
-                    1차 조회
-                  </div>
-                </div>
+  <div className="mt-1 text-sm font-bold leading-6 text-zinc-400">
+    게이트 진입 전 두 터미널의 배차정보를 동시에 확인합니다.
+  </div>
+</div>
 
                 {/* 조회버튼 */}
 
                 <button
-                  type="button"
-                  onClick={
-                    togglePolling
-                  }
-                  disabled={
-                    loading ||
-                    !loggedIn ||
-                    !vehicleNumber
-                  }
-                  className={`mt-6 h-16 w-full rounded-2xl text-lg font-black transition active:scale-[0.99] disabled:opacity-40 ${
-                    terminalPolling
-                      ? "bg-zinc-700 text-zinc-300"
-                      : "bg-orange-600 text-white"
-                  }`}
-                >
-                  {terminalPolling
-                    ? "조회 중지"
-                    : "정보 조회 시작"}
-                </button>
-
+  type="button"
+  onClick={togglePolling}
+  disabled={
+    loading ||
+    !loggedIn ||
+    !vehicleNumber ||
+    Boolean(gwctInfo?.hasInfo) ||
+    Boolean(kitlInfo?.hasInfo)
+  }
+  className={`mt-6 h-16 w-full rounded-2xl text-lg font-black transition active:scale-[0.99] ${
+    terminalPolling ||
+    Boolean(gwctInfo?.hasInfo) ||
+    Boolean(kitlInfo?.hasInfo)
+      ? "bg-zinc-700 text-zinc-300"
+      : "bg-orange-600 text-white"
+  }`}
+>
+  {gwctInfo?.hasInfo || kitlInfo?.hasInfo
+    ? "배차정보 확인됨"
+    : terminalPolling
+      ? "조회 중지"
+      : "정보 조회 시작"}
+</button>
                 {/* 조회중 */}
 
                 {terminalPolling && (
@@ -789,16 +790,16 @@ export default function HomePage() {
 
                 {!firstTerminal && (
                   <div className="mt-5 border-t border-white/10 pt-4">
-                    <div className="text-center text-xs leading-5 text-zinc-600">
-                      터미널을 이미 알고 있고 게이트를 통과했다면
-                    </div>
+                    <div className="text-center text-sm font-bold leading-5 text-zinc-400">
+  이미 게이트를 통과했다면 바로 조회하세요.
+</div>
 
-                    <Link
-                      href="/terminal"
-                      className="mt-3 flex h-12 w-full items-center justify-center rounded-xl border border-white/10 bg-zinc-900 text-sm font-black text-zinc-400 transition active:scale-[0.99]"
-                    >
-                      게이트 통과 후 직접 조회
-                    </Link>
+<Link
+  href="/terminal"
+  className="mt-3 flex h-14 w-full items-center justify-center rounded-xl bg-orange-600 text-base font-black text-white transition active:scale-[0.99]"
+>
+  게이트 통과 후 직접 조회
+</Link>
                   </div>
                 )}
               </section>
