@@ -318,30 +318,32 @@ export default function TerminalPage() {
   // 조회 결과에서 실제 작업항목 뽑기
   // =====================================
 
-  function pickWorkItem(
+  function pickWorkItems(
     info: TerminalInfo | null
   ) {
     if (!info) {
-      return null;
+      return [] as TerminalItem[];
     }
 
-    const items = [
+    const sourceItems = [
       ...(info.inbound ?? []),
       ...(info.outbound ?? []),
-      ...(info.items ?? []),
     ];
 
-    if (items.length === 0) {
-      return null;
-    }
+    const fallbackItems =
+      sourceItems.length > 0
+        ? sourceItems
+        : [...(info.items ?? [])];
 
-    const activeItem =
-      items.find(
+    const activeItems =
+      fallbackItems.filter(
         (item) =>
           item.completed !== true
       );
 
-    return activeItem ?? items[0];
+    return activeItems.length > 0
+      ? activeItems
+      : fallbackItems;
   }
 
   // =====================================
@@ -466,8 +468,11 @@ export default function TerminalPage() {
   // 작업 표시용
   // =====================================
 
+  const workItems =
+    pickWorkItems(workInfo);
+
   const workItem =
-    pickWorkItem(workInfo);
+    workItems[0] ?? null;
 
   const workTerminalName =
     workTerminal === "GWCT"
@@ -559,7 +564,7 @@ export default function TerminalPage() {
         );
 
       const item =
-        pickWorkItem(result);
+        pickWorkItems(result)[0] ?? null;
 
       if (!item) {
         setOtherMessage(
@@ -596,7 +601,7 @@ export default function TerminalPage() {
       "저장 준비 중..."
     );
 
-    if (!workItem) {
+    if (workItems.length === 0) {
       setSaveStatus(
         "❌ 저장할 작업정보가 없습니다."
       );
@@ -651,43 +656,42 @@ export default function TerminalPage() {
         return;
       }
 
-      const direction =
-        workItem.type === "반출"
-          ? "OUT"
-          : "IN";
+      const workDate = new Intl.DateTimeFormat(
+        "en-CA",
+        {
+          timeZone: "Asia/Seoul",
+        }
+      ).format(new Date());
 
-      const sizeText =
-        workItem.size ||
-        workItem.sizeType ||
-        workItem.rawSize ||
-        "";
+      const rows = workItems.map(
+        (item) => {
+          const direction =
+            item.type === "반출"
+              ? "OUT"
+              : "IN";
 
-      const sizeMatch =
-        sizeText.match(/20|40/);
+          const sizeText =
+            item.size ||
+            item.sizeType ||
+            item.rawSize ||
+            "";
 
-      const containerSize =
-        sizeMatch
-          ? Number(
-              sizeMatch[0]
-            )
-          : null;
+          const sizeMatch =
+            sizeText.match(/20|40/);
 
-      setSaveStatus(
-        "운행일지 저장 중..."
-      );
+          const containerSize =
+            sizeMatch
+              ? Number(
+                  sizeMatch[0]
+                )
+              : null;
 
-      const workDate = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Seoul",
-      }).format(new Date());
-
-      const { error } =
-        await supabase
-          .from("trip_logs")
-          .insert({
+          return {
             user_id:
               user.id,
 
-            work_date: workDate,
+            work_date:
+              workDate,
 
             terminal:
               workTerminal ||
@@ -697,14 +701,14 @@ export default function TerminalPage() {
             direction,
 
             container_no:
-              workItem.containerNo ||
+              item.containerNo ||
               null,
 
             container_size:
               containerSize,
 
             container_status:
-              workItem.fe ||
+              item.fe ||
               null,
 
             region,
@@ -715,23 +719,30 @@ export default function TerminalPage() {
                 ? regionCustom.trim()
                 : null,
 
-            // 장치장 위치는
-            // 현장 조회용 정보이므로
-            // trip_logs에 저장하지 않음
-
             is_dangerous:
               false,
 
             entry_source:
               "TERMINAL",
-          });
+          };
+        }
+      );
+
+      setSaveStatus(
+        `운행일지 ${rows.length}건 저장 중...`
+      );
+
+      const { error } =
+        await supabase
+          .from("trip_logs")
+          .insert(rows);
 
       if (error) {
         if (
           error.code === "23505"
         ) {
           setSaveStatus(
-            "⚠️ 이미 저장된 운행입니다."
+            "⚠️ 이미 저장된 운행이 포함되어 있습니다."
           );
 
           return;
@@ -747,7 +758,7 @@ export default function TerminalPage() {
       setSaved(true);
 
       setSaveStatus(
-        "✅ 작업 완료 · 운행일지 저장 완료"
+        `✅ 작업 완료 · 운행일지 ${rows.length}건 저장 완료`
       );
     } catch (error) {
       setSaveStatus(
@@ -890,9 +901,20 @@ export default function TerminalPage() {
         {/* ================================= */}
 
         {workInfo &&
-          workItem && (
+          workItems.length > 0 && (
             <section className="mt-5 space-y-5">
-              <div className="rounded-2xl border border-white/10 bg-zinc-950 p-5">
+              {workItems.length > 1 && (
+                <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-center text-sm font-black text-blue-300">
+                  작업정보 {workItems.length}건
+                </div>
+              )}
+
+              {workItems.map(
+                (item, itemIndex) => (
+              <div
+                key={`${item.containerNo || "work"}-${itemIndex}`}
+                className="rounded-2xl border border-white/10 bg-zinc-950 p-5"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-xs font-bold text-zinc-500">
@@ -902,22 +924,22 @@ export default function TerminalPage() {
 
                     <div
                       className={`mt-1 text-2xl font-black ${
-                        workItem.type ===
+                        item.type ===
                         "반출"
                           ? "text-blue-400"
                           : "text-orange-400"
                       }`}
                     >
-                      {workItem.type ||
+                      {item.type ||
                         "-"}
                     </div>
                   </div>
 
                   <div className="rounded-xl bg-zinc-900 px-4 py-2 font-black">
-                    {workItem.size
-                      ? `${workItem.size}FT`
-                      : workItem.sizeType ||
-                        workItem.rawSize ||
+                    {item.size
+                      ? `${item.size}FT`
+                      : item.sizeType ||
+                        item.rawSize ||
                         "-"}
                   </div>
                 </div>
@@ -931,13 +953,13 @@ export default function TerminalPage() {
 
                   <div className="mt-2 flex flex-wrap items-center gap-3">
                     <div className="text-2xl font-black tracking-wide">
-                      {workItem.containerNo ||
+                      {item.containerNo ||
                         "-"}
                     </div>
 
-                    {workItem.type ===
+                    {item.type ===
                       "반출" &&
-                      workItem.containerNo && (
+                      item.containerNo && (
                         <button
                           type="button"
                           onClick={
@@ -960,7 +982,7 @@ export default function TerminalPage() {
                   </div>
 
                   <div className="mt-1 text-3xl font-black text-orange-400">
-                    {workItem.yardLocation ||
+                    {item.yardLocation ||
                       "-"}
                   </div>
                 </div>
@@ -974,8 +996,8 @@ export default function TerminalPage() {
                     </div>
 
                     <div className="mt-1 font-black">
-                      {workItem.fe ||
-                        workItem.sizeType ||
+                      {item.fe ||
+                        item.sizeType ||
                         "-"}
                     </div>
                   </div>
@@ -986,13 +1008,15 @@ export default function TerminalPage() {
                     </div>
 
                     <div className="mt-1 font-black">
-                      {workItem.status ||
-                        workItem.shippingStatus ||
+                      {item.status ||
+                        item.shippingStatus ||
                         "-"}
                     </div>
                   </div>
                 </div>
               </div>
+                )
+              )}
 
               {/* ================================= */}
               {/* 타 차량 장치장 조회 */}
