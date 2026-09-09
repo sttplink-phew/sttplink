@@ -299,21 +299,13 @@ export default function DailyPage() {
         Number(a.tripNo) - Number(b.tripNo)
     );
 
-  const legacyGroups = Array.from(
-    tripGroupMap.values()
-  ).filter((group) => group.tripNo == null);
-
-  const dailyTripGroups = [
-    ...numberedGroups.map((group) => ({
+  // 회전수는 실제 trip_no가 저장된 기록만 계산한다.
+  // 과거 trip_no = NULL 기록은 회전수에 포함하지 않는다.
+  const dailyTripGroups =
+    numberedGroups.map((group) => ({
       ...group,
       displayTripNo: Number(group.tripNo),
-    })),
-    ...legacyGroups.map((group, index) => ({
-      ...group,
-      displayTripNo:
-        maxSavedTripNo + index + 1,
-    })),
-  ];
+    }));
 
   const dailyTripCount =
     dailyTripGroups.length;
@@ -379,13 +371,12 @@ export default function DailyPage() {
 
   monthlyLogs.forEach((log) => {
     if (log.trip_no != null) {
+      // 같은 날짜의 같은 trip_no는 기록이 여러 건이어도 1회전
       monthlyTripKeys.add(
         `${log.work_date}-${log.trip_no}`
       );
-    } else {
-      // trip_no가 없던 과거 기록은 기존 데이터 보존을 위해 1건=1회전 처리
-      monthlyTripKeys.add(`legacy-${log.id}`);
     }
+    // 과거 trip_no = NULL 기록은 월간 회전수에서 제외
   });
 
   const monthlyTripCount =
@@ -704,6 +695,15 @@ export default function DailyPage() {
                 정상 작업을 저장하면 자동으로 등록됩니다.
               </div>
             </div>
+          ) : dailyTripGroups.length === 0 ? (
+            <div className="mt-3 rounded-2xl border border-white/10 bg-zinc-900 p-5 text-center">
+              <div className="text-sm font-black text-zinc-500">
+                기존 기록은 있지만 회전번호가 없습니다.
+              </div>
+              <div className="mt-1 text-xs font-bold text-zinc-700">
+                새로 저장되는 운행부터 회전수가 정상 집계됩니다.
+              </div>
+            </div>
           ) : (
             <div className="mt-3 space-y-4">
               {dailyTripGroups.map((group) => (
@@ -718,12 +718,6 @@ export default function DailyPage() {
                     <div className="text-sm font-black text-zinc-400">
                       회전
                     </div>
-
-                    {group.tripNo == null && (
-                      <div className="ml-auto text-xs font-bold text-zinc-600">
-                        기존 기록
-                      </div>
-                    )}
                   </div>
 
                   <div className="divide-y divide-white/10">
