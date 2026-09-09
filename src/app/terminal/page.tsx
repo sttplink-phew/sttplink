@@ -159,6 +159,13 @@ export default function TerminalPage() {
   ] = useState("");
 
   // =====================================
+  // 회전번호
+  // =====================================
+
+  const [tripNo, setTripNo] = useState(1);
+  const [tripNoLoading, setTripNoLoading] = useState(false);
+
+  // =====================================
   // 컨테이너 번호 복사
   // =====================================
 
@@ -403,6 +410,8 @@ export default function TerminalPage() {
         setWorkTerminal(terminal);
         setWorkMessage("");
 
+        await loadNextTripNo();
+
         return;
       }
 
@@ -591,6 +600,59 @@ export default function TerminalPage() {
   }
 
   // =====================================
+  // 오늘 다음 회전번호 조회
+  // =====================================
+
+  async function loadNextTripNo() {
+    try {
+      setTripNoLoading(true);
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setTripNo(1);
+        return;
+      }
+
+      const workDate = new Intl.DateTimeFormat(
+        "en-CA",
+        {
+          timeZone: "Asia/Seoul",
+        }
+      ).format(new Date());
+
+      const { data, error } = await supabase
+        .from("trip_logs")
+        .select("trip_no")
+        .eq("user_id", user.id)
+        .eq("work_date", workDate)
+        .not("trip_no", "is", null)
+        .order("trip_no", { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error(
+          "회전번호 조회 실패:",
+          error
+        );
+        setTripNo(1);
+        return;
+      }
+
+      const maxTripNo =
+        data && data.length > 0
+          ? Number(data[0].trip_no) || 0
+          : 0;
+
+      setTripNo(maxTripNo + 1);
+    } finally {
+      setTripNoLoading(false);
+    }
+  }
+
+  // =====================================
   // 운행일지 저장
   //
   // 장치장은 저장하지 않음
@@ -692,6 +754,9 @@ export default function TerminalPage() {
 
             work_date:
               workDate,
+
+            trip_no:
+              tripNo,
 
             terminal:
               workTerminal ||
@@ -1096,6 +1161,59 @@ export default function TerminalPage() {
                     )}
                   </div>
                 )}
+              </div>
+
+              {/* ================================= */}
+              {/* 회전번호 */}
+              {/* ================================= */}
+
+              <div className="rounded-2xl border border-orange-500/30 bg-zinc-900 p-5">
+                <div className="text-sm font-black text-zinc-400">
+                  회전번호
+                </div>
+
+                <div className="mt-3 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setTripNo((prev) =>
+                        Math.max(1, prev - 1)
+                      )
+                    }
+                    disabled={tripNoLoading}
+                    className="h-14 w-14 rounded-xl bg-black text-2xl font-black text-white disabled:opacity-40"
+                  >
+                    −
+                  </button>
+
+                  <div className="flex-1 text-center">
+                    <span className="text-4xl font-black text-orange-400">
+                      {tripNo}
+                    </span>
+                    <span className="ml-2 text-lg font-black text-zinc-400">
+                      회전
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setTripNo((prev) =>
+                        prev + 1
+                      )
+                    }
+                    disabled={tripNoLoading}
+                    className="h-14 w-14 rounded-xl bg-black text-2xl font-black text-white disabled:opacity-40"
+                  >
+                    +
+                  </button>
+                </div>
+
+                <div className="mt-3 text-center text-xs font-bold text-zinc-600">
+                  {tripNoLoading
+                    ? "회전번호 확인 중..."
+                    : "오늘 다음 회전이 자동 선택됩니다 · 같은 회전이면 번호를 조정하세요"}
+                </div>
               </div>
 
               {/* ================================= */}
