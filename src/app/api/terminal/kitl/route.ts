@@ -11,6 +11,70 @@ function cleanText(value: string) {
     .trim();
 }
 
+
+type KitlEntryBlock = {
+  directionClass: "inbound" | "outbound";
+  completed: boolean;
+  entryHtml: string;
+};
+
+function extractEntryBlocks(html: string): KitlEntryBlock[] {
+  const blocks: KitlEntryBlock[] = [];
+
+  const startRe =
+    /<div\b[^>]*class=["'][^"']*\bentry\s+(inbound|outbound)\b[^"']*["'][^>]*>/gi;
+
+  let startMatch: RegExpExecArray | null;
+
+  while ((startMatch = startRe.exec(html)) !== null) {
+    const openingTag = startMatch[0];
+    const directionClass =
+      startMatch[1].toLowerCase() as "inbound" | "outbound";
+
+    const completed =
+      /\bcompleted\b/i.test(openingTag);
+
+    const contentStart =
+      startMatch.index + openingTag.length;
+
+    const divTokenRe =
+      /<div\b[^>]*>|<\/div>/gi;
+
+    divTokenRe.lastIndex = contentStart;
+
+    let depth = 1;
+    let token: RegExpExecArray | null;
+    let contentEnd = html.length;
+
+    while ((token = divTokenRe.exec(html)) !== null) {
+      if (/^<div\b/i.test(token[0])) {
+        depth += 1;
+      } else {
+        depth -= 1;
+
+        if (depth === 0) {
+          contentEnd = token.index;
+          break;
+        }
+      }
+    }
+
+    blocks.push({
+      directionClass,
+      completed,
+      entryHtml: html.slice(
+        contentStart,
+        contentEnd
+      ),
+    });
+
+    startRe.lastIndex =
+      divTokenRe.lastIndex;
+  }
+
+  return blocks;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -160,22 +224,19 @@ export async function POST(request: NextRequest) {
     // KITL 작업정보 블록 추출
     // ---------------------------------
 
-    const entryMatches = [
-      ...html.matchAll(
-        /<div class="entry (inbound|outbound)( completed)?".*?>([\s\S]*?)<\/div>\s*<\/div>/gi
-      ),
-    ];
+    const entryBlocks =
+      extractEntryBlocks(html);
 
-    const items = entryMatches
-      .map((match) => {
+    const items = entryBlocks
+      .map((entry) => {
         const directionClass =
-          match[1];
+          entry.directionClass;
 
         const completed =
-          Boolean(match[2]);
+          entry.completed;
 
         const entryHtml =
-          match[3];
+          entry.entryHtml;
 
         // -----------------------------
         // 상단 영역
@@ -244,17 +305,35 @@ export async function POST(request: NextRequest) {
 
         const badges = [
           ...entryHtml.matchAll(
-            /border-radius:20px;[^>]*>([\s\S]*?)<\/div>/gi
+            /<div\b[^>]*>([\s\S]*?)<\/div>/gi
           ),
-        ].map((m) =>
-          cleanText(m[1])
-        );
+        ]
+          .map((m) =>
+            cleanText(m[1])
+          )
+          .filter(Boolean);
 
         const shippingStatus =
-          badges[0] || "";
+          badges.find((value) =>
+            /\b[A-Z]{2,6}\s*\/\s*(F|E)\b/i.test(
+              value
+            )
+          ) ||
+          fullText.match(
+            /\b[A-Z]{2,6}\s*\/\s*(F|E)\b/i
+          )?.[0] ||
+          "";
 
         const sizeType =
-          badges[1] || "";
+          badges.find((value) =>
+            /\b(20|40|45)\s*\/\s*[A-Z0-9]{1,8}\b/i.test(
+              value
+            )
+          ) ||
+          fullText.match(
+            /\b(20|40|45)\s*\/\s*[A-Z0-9]{1,8}\b/i
+          )?.[0] ||
+          "";
 
         // -----------------------------
         // 전송일시
@@ -317,7 +396,7 @@ export async function POST(request: NextRequest) {
 
         const yardMatch =
           fullText.match(
-            /\b[A-Z]\d?-\d{1,2}-\d{1,2}(?:-\d{1,2})?\b/i
+            /\b[A-Z]\d?(?:\([A-Z]\d?\))?-\d{1,2}-\d{1,2}(?:-\d{1,2})?\b/i
           );
 
         const yardLocation =
