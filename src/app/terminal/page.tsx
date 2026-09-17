@@ -304,6 +304,12 @@ export default function TerminalPage() {
           body: JSON.stringify({
             truckNo,
             phase,
+            ...(terminal === "KITL"
+              ? {
+                  excludeContainerNos:
+                    getKitlExcludedContainerNos(),
+                }
+              : {}),
           }),
         });
 
@@ -502,10 +508,9 @@ export default function TerminalPage() {
   // 반출에만 표시
   // =====================================
 
-  async function copyContainerNumber() {
-    const containerNo =
-      workItem?.containerNo;
-
+  async function copyContainerNumber(
+    containerNo?: string
+  ) {
     if (!containerNo) {
       setCopyStatus("복사 실패");
       return;
@@ -516,7 +521,7 @@ export default function TerminalPage() {
         containerNo
       );
 
-      setCopyStatus("복사 완료 ✓");
+      setCopyStatus(containerNo);
 
       window.setTimeout(() => {
         setCopyStatus("");
@@ -530,6 +535,196 @@ export default function TerminalPage() {
       setCopyStatus("복사 실패");
     }
   }
+
+  // =====================================
+  // 국제(KITL) 삭제 기록
+  // 30일간 STTP에서 제외 후 자동 만료
+  // =====================================
+
+  const KITL_EXCLUDED_KEY =
+    "sttp_kitl_excluded_containers";
+
+  type KitlExcludedItem = {
+    containerNo: string;
+    deletedAt: number;
+  };
+
+  function getKitlExcludedItems() {
+    try {
+      const raw = window.localStorage.getItem(
+        KITL_EXCLUDED_KEY
+      );
+
+      const parsed: KitlExcludedItem[] =
+        raw ? JSON.parse(raw) : [];
+
+      const expiresAt =
+        Date.now() -
+        30 * 24 * 60 * 60 * 1000;
+
+      const valid = parsed.filter(
+        (item) =>
+          item?.containerNo &&
+          item.deletedAt >= expiresAt
+      );
+
+      if (valid.length !== parsed.length) {
+        window.localStorage.setItem(
+          KITL_EXCLUDED_KEY,
+          JSON.stringify(valid)
+        );
+      }
+
+      return valid;
+    } catch {
+      return [] as KitlExcludedItem[];
+    }
+  }
+
+  function getKitlExcludedContainerNos() {
+    if (typeof window === "undefined") {
+      return [] as string[];
+    }
+
+    return getKitlExcludedItems().map(
+      (item) => item.containerNo
+    );
+  }
+
+  function rememberKitlExcludedContainer(
+    containerNo: string
+  ) {
+    const normalized =
+      containerNo.trim().toUpperCase();
+
+    const previous =
+      getKitlExcludedItems().filter(
+        (item) =>
+          item.containerNo !== normalized
+      );
+
+    previous.push({
+      containerNo: normalized,
+      deletedAt: Date.now(),
+    });
+
+    window.localStorage.setItem(
+      KITL_EXCLUDED_KEY,
+      JSON.stringify(previous)
+    );
+  }
+
+  // =====================================
+  // 국제(KITL) 이전 기록 삭제
+  // STTP에서 30일간 숨김 처리
+  // 저장 전 삭제하면 운행일지에도 저장되지 않음
+  // =====================================
+
+  function deleteInternationalItem(
+    containerNo?: string
+  ) {
+    if (
+      workTerminal !== "KITL" ||
+      !containerNo
+    ) {
+      return;
+    }
+
+    const ok = window.confirm(
+      `${containerNo}\n이 기록을 현재 작업정보에서 삭제할까요?`
+    );
+
+    if (!ok) {
+      return;
+    }
+
+    rememberKitlExcludedContainer(
+      containerNo
+    );
+
+    const removeItem = (
+      items?: TerminalItem[]
+    ) =>
+      (items ?? []).filter(
+        (item) =>
+          item.containerNo !== containerNo
+      );
+
+    setWorkInfo((prev) => {
+      if (!prev) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        inbound: removeItem(prev.inbound),
+        outbound: removeItem(prev.outbound),
+        items: removeItem(prev.items),
+      };
+    });
+
+    setNormalConfirmed(false);
+    setSaved(false);
+    setSaveStatus("");
+    setCopyStatus("");
+  }
+
+  // =====================================
+  // 화면 표시용 그룹
+  // 같은 방향의 20FT 두 개는 한 카드로 표시
+  // 저장은 기존처럼 컨테이너별 2건 유지
+  // =====================================
+
+  function getContainerSize(
+    item: TerminalItem
+  ) {
+    const sizeText =
+      item.size ||
+      item.sizeType ||
+      item.rawSize ||
+      "";
+
+    const match =
+      String(sizeText).match(/20|40/);
+
+    return match ? Number(match[0]) : null;
+  }
+
+  const displayGroups = (() => {
+    const groups: TerminalItem[][] = [];
+    const used = new Set<number>();
+
+    workItems.forEach((item, index) => {
+      if (used.has(index)) {
+        return;
+      }
+
+      if (getContainerSize(item) === 20) {
+        const pairIndex = workItems.findIndex(
+          (candidate, candidateIndex) =>
+            candidateIndex > index &&
+            !used.has(candidateIndex) &&
+            candidate.type === item.type &&
+            getContainerSize(candidate) === 20
+        );
+
+        if (pairIndex !== -1) {
+          groups.push([
+            item,
+            workItems[pairIndex],
+          ]);
+          used.add(index);
+          used.add(pairIndex);
+          return;
+        }
+      }
+
+      groups.push([item]);
+      used.add(index);
+    });
+
+    return groups;
+  })();
 
   // =====================================
   // 타 차량 장치장 조회
@@ -974,113 +1169,206 @@ export default function TerminalPage() {
                 </div>
               )}
 
-              {workItems.map(
-                (item, itemIndex) => (
-              <div
-                key={`${item.containerNo || "work"}-${itemIndex}`}
-                className="rounded-2xl border border-white/10 bg-zinc-950 p-5"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-xs font-bold text-zinc-500">
-                      {workTerminalName}{" "}
-                      ({workTerminal})
-                    </div>
+              {displayGroups.map(
+                (group, groupIndex) => {
+                  const item = group[0];
+                  const isTwin20 =
+                    group.length === 2 &&
+                    group.every(
+                      (groupItem) =>
+                        getContainerSize(
+                          groupItem
+                        ) === 20
+                    );
 
+                  return (
                     <div
-                      className={`mt-1 text-2xl font-black ${
-                        item.type ===
-                        "반출"
-                          ? "text-blue-400"
-                          : "text-orange-400"
-                      }`}
+                      key={`${group
+                        .map(
+                          (groupItem) =>
+                            groupItem.containerNo ||
+                            "work"
+                        )
+                        .join("-")}-${groupIndex}`}
+                      className="rounded-2xl border border-white/10 bg-zinc-950 p-5"
                     >
-                      {item.type ||
-                        "-"}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-xs font-bold text-zinc-500">
+                            {workTerminalName}{" "}
+                            ({workTerminal})
+                          </div>
+
+                          <div
+                            className={`mt-1 text-2xl font-black ${
+                              item.type === "반출"
+                                ? "text-blue-400"
+                                : "text-orange-400"
+                            }`}
+                          >
+                            {item.type || "-"}
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl bg-zinc-900 px-4 py-2 font-black">
+                          {isTwin20
+                            ? "20FT × 2"
+                            : item.size
+                              ? `${item.size}FT`
+                              : item.sizeType ||
+                                item.rawSize ||
+                                "-"}
+                        </div>
+                      </div>
+
+                      {/* 컨테이너 번호 */}
+
+                      <div className="mt-5">
+                        <div className="text-xs font-bold text-zinc-600">
+                          컨테이너 번호
+                        </div>
+
+                        <div className="mt-2 space-y-3">
+                          {group.map(
+                            (
+                              groupItem,
+                              containerIndex
+                            ) => (
+                              <div
+                                key={`${groupItem.containerNo || "container"}-${containerIndex}`}
+                                className={
+                                  isTwin20 &&
+                                  containerIndex > 0
+                                    ? "border-t border-white/10 pt-3"
+                                    : ""
+                                }
+                              >
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div className="text-2xl font-black tracking-wide">
+                                    {groupItem.containerNo ||
+                                      "-"}
+                                  </div>
+
+                                  <div className="flex flex-col gap-2">
+                                    {groupItem.type ===
+                                      "반출" &&
+                                      groupItem.containerNo && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            copyContainerNumber(
+                                              groupItem.containerNo
+                                            )
+                                          }
+                                          className="rounded-xl border border-blue-500/40 bg-blue-500/10 px-4 py-2 text-sm font-black text-blue-400 transition active:scale-[0.98]"
+                                        >
+                                          {copyStatus ===
+                                          groupItem.containerNo
+                                            ? "복사 완료 ✓"
+                                            : "번호 복사하기"}
+                                        </button>
+                                      )}
+
+                                    {workTerminal ===
+                                      "KITL" &&
+                                      groupItem.containerNo && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            deleteInternationalItem(
+                                              groupItem.containerNo
+                                            )
+                                          }
+                                          className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-black text-red-400 transition active:scale-[0.98]"
+                                        >
+                                          삭제
+                                        </button>
+                                      )}
+                                  </div>
+                                </div>
+
+                                {isTwin20 && (
+                                  <div className="mt-1 text-xs font-black text-zinc-600">
+                                    20FT #{containerIndex + 1}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 장치장 */}
+
+                      <div
+                        className={`mt-4 grid gap-2 ${
+                          group.length > 1
+                            ? "grid-cols-2"
+                            : "grid-cols-1"
+                        }`}
+                      >
+                        {group.map(
+                          (groupItem, yardIndex) => (
+                            <div
+                              key={`yard-${groupItem.containerNo || yardIndex}`}
+                              className="rounded-xl bg-zinc-900 p-4"
+                            >
+                              <div className="text-xs font-bold text-zinc-600">
+                                장치장 위치
+                                {group.length > 1
+                                  ? ` #${yardIndex + 1}`
+                                  : ""}
+                              </div>
+
+                              <div className="mt-1 text-3xl font-black text-orange-400">
+                                {groupItem.yardLocation ||
+                                  "-"}
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+
+                      {/* 자동정보 */}
+
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div className="rounded-xl bg-zinc-900 p-3">
+                          <div className="text-xs text-zinc-600">
+                            FULL / EMPTY
+                          </div>
+
+                          <div className="mt-1 font-black">
+                            {group
+                              .map(
+                                (groupItem) =>
+                                  groupItem.fe ||
+                                  groupItem.sizeType ||
+                                  "-"
+                              )
+                              .join(" / ")}
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl bg-zinc-900 p-3">
+                          <div className="text-xs text-zinc-600">
+                            상태
+                          </div>
+
+                          <div className="mt-1 font-black">
+                            {group
+                              .map(
+                                (groupItem) =>
+                                  groupItem.status ||
+                                  groupItem.shippingStatus ||
+                                  "-"
+                              )
+                              .join(" / ")}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="rounded-xl bg-zinc-900 px-4 py-2 font-black">
-                    {item.size
-                      ? `${item.size}FT`
-                      : item.sizeType ||
-                        item.rawSize ||
-                        "-"}
-                  </div>
-                </div>
-
-                {/* 컨테이너 번호 */}
-
-                <div className="mt-5">
-                  <div className="text-xs font-bold text-zinc-600">
-                    컨테이너 번호
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap items-center gap-3">
-                    <div className="text-2xl font-black tracking-wide">
-                      {item.containerNo ||
-                        "-"}
-                    </div>
-
-                    {item.type ===
-                      "반출" &&
-                      item.containerNo && (
-                        <button
-                          type="button"
-                          onClick={
-                            copyContainerNumber
-                          }
-                          className="rounded-xl border border-blue-500/40 bg-blue-500/10 px-4 py-2 text-sm font-black text-blue-400 transition active:scale-[0.98]"
-                        >
-                          {copyStatus ||
-                            "번호 복사하기"}
-                        </button>
-                      )}
-                  </div>
-                </div>
-
-                {/* 장치장 */}
-
-                <div className="mt-4 rounded-xl bg-zinc-900 p-4">
-                  <div className="text-xs font-bold text-zinc-600">
-                    장치장 위치
-                  </div>
-
-                  <div className="mt-1 text-3xl font-black text-orange-400">
-                    {item.yardLocation ||
-                      "-"}
-                  </div>
-                </div>
-
-                {/* 자동정보 */}
-
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <div className="rounded-xl bg-zinc-900 p-3">
-                    <div className="text-xs text-zinc-600">
-                      FULL / EMPTY
-                    </div>
-
-                    <div className="mt-1 font-black">
-                      {item.fe ||
-                        item.sizeType ||
-                        "-"}
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl bg-zinc-900 p-3">
-                    <div className="text-xs text-zinc-600">
-                      상태
-                    </div>
-
-                    <div className="mt-1 font-black">
-                      {item.status ||
-                        item.shippingStatus ||
-                        "-"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-                )
+                  );
+                }
               )}
 
               {/* ================================= */}
